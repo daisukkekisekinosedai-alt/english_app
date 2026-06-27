@@ -1,0 +1,136 @@
+
+{% extends "base.html" %}
+{% block title %}スマート学習 - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="smart-hero card smart-mode-{{ plan.mode }}">
+    <div class="smart-hero-text">
+        <p class="eyebrow">Smart Study Engine</p>
+        <h1>今日やるべき単語を<br>自動で選ぶにゃ</h1>
+        <p class="lead">{{ plan.message }}</p>
+        <div class="hero-actions">
+            <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='smart', count=10) }}">⚡ おすすめ10問を開始</a>
+            <a class="button secondary" href="{{ url_for('session_start', mode='listen', scope='smart', count=10) }}">🎧 おすすめリスニング</a>
+        </div>
+    </div>
+    <img class="hero-real-cat" src="{{ url_for('static', filename=cat_image('study')) }}" alt="にゃんコーチ">
+</section>
+
+<section class="smart-grid">
+    {% for key, item in plan.breakdown.items() %}
+    <article class="smart-stat-card smart-bucket-{{ key }}">
+        <span>{{ item.label }}</span>
+        <strong>{{ item.count }}</strong>
+    </article>
+    {% endfor %}
+</section>
+
+<section class="card">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Today Mission</p>
+            <h2>今日のミッション</h2>
+        </div>
+        <span class="ranking-count">自動生成</span>
+    </div>
+    <div class="mission-list">
+        {% for mission in plan.missions %}
+            <article class="mission-card {% if mission.done %}done{% endif %}">
+                <div class="mission-check">{% if mission.done %}✓{% else %}{{ loop.index }}{% endif %}</div>
+                <div>
+                    <h3>{{ mission.title }}</h3>
+                    <p>{{ mission.description }}</p>
+                </div>
+                <a class="button secondary small" href="{{ mission.url }}">{{ mission.button }}</a>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="card">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Priority Queue</p>
+            <h2>今日の優先単語</h2>
+            <p class="muted">ミス回数、最後に解いた日、正答率から自動で優先度を計算しています。</p>
+        </div>
+        <a class="button primary small" href="{{ url_for('session_start', mode='choice', scope='smart', count=10) }}">この順で解く</a>
+    </div>
+
+    {% if plan.top_words %}
+        <div class="smart-word-list">
+            {% for word in plan.top_words %}
+                <article class="smart-word-row bucket-{{ word.bucket }}">
+                    <div class="smart-score">
+                        <strong>{{ word.score }}</strong>
+                        <span>score</span>
+                    </div>
+                    <div class="smart-word-main">
+                        <div class="smart-word-title">
+                            <strong>{{ word.english }}</strong>
+                            <span>{{ word.category }}</span>
+                            <span>{{ word.part_of_speech_label }}</span>
+                        </div>
+                        <p>{{ word.japanese }}</p>
+                        <small>{{ word.reason }}</small>
+                    </div>
+                    <div class="smart-word-meta">
+                        <span>{{ word.attempts }}回</span>
+                        {% if word.accuracy is not none %}
+                            <span>{{ word.accuracy }}%</span>
+                        {% else %}
+                            <span>未回答</span>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">まだ単語がありません。masterでCSVインポートすると、ここに自動プランが出ます。</p>
+    {% endif %}
+</section>
+
+<section class="smart-two-column">
+    <article class="card">
+        <div class="section-title-row">
+            <div>
+                <p class="eyebrow">Weak Category</p>
+                <h2>苦手カテゴリ</h2>
+            </div>
+        </div>
+        {% if plan.category_weakness %}
+            <div class="weak-mini-list">
+                {% for row in plan.category_weakness %}
+                    <div>
+                        <strong>{{ row.category }}</strong>
+                        <span>{{ row.accuracy }}% / {{ row.attempts }}回</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">カテゴリ別の傾向は、3問以上解くと出ます。</p>
+        {% endif %}
+    </article>
+
+    <article class="card">
+        <div class="section-title-row">
+            <div>
+                <p class="eyebrow">Weak POS</p>
+                <h2>苦手品詞</h2>
+            </div>
+        </div>
+        {% if plan.pos_weakness %}
+            <div class="weak-mini-list">
+                {% for row in plan.pos_weakness %}
+                    <div>
+                        <strong>{{ row.label }}</strong>
+                        <span>{{ row.accuracy }}% / {{ row.attempts }}回</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">品詞別の傾向は、3問以上解くと出ます。</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

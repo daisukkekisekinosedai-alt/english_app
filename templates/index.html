@@ -13,7 +13,12 @@
     <img class="hero-real-cat" src="{{ url_for('static', filename=cat_image('home')) }}" alt="ピンクの毛糸で遊ぶ子猫">
 
     <div class="hero-actions">
-        <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='all', count=10) }}">🐾 10問連続クイズ</a>
+        {% if feature_enabled(1) %}
+            <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='smart', count=10) }}">⚡ おすすめ10問</a>
+            <a class="button secondary" href="{{ url_for('session_start', mode='choice', scope='all', count=10) }}">🐾 通常10問</a>
+        {% else %}
+            <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='all', count=10) }}">🐾 10問連続クイズ</a>
+        {% endif %}
         <a class="button secondary" href="{{ url_for('listen_quiz') }}">🎧 音声で聞く</a>
         <a class="button secondary" href="{{ url_for('quiz', mode='choice') }}">🐱 1問クイズ</a>
         <a class="button secondary" href="{{ url_for('quiz', mode='input') }}">🎀 入力式</a>
@@ -66,6 +71,26 @@
             {% endfor %}
         </div>
     {% endif %}
+
+</section>
+
+<section class="card feature-module-strip">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Update v17</p>
+            <h2>機能モジュール</h2>
+            <p class="muted">番号付きなので、あとから使う機能だけ残せます。</p>
+        </div>
+        <a class="button secondary small" href="{{ url_for('features') }}">一覧</a>
+    </div>
+    <div class="feature-chip-list">
+        {% for feature in enabled_feature_modules %}
+            <a class="feature-chip" href="{{ url_for(feature.route) if feature.route else '#' }}">
+                <strong>{{ feature.id }}</strong>
+                <span>{{ feature.emoji }} {{ feature.short_name }}</span>
+            </a>
+        {% endfor %}
+    </div>
 </section>
 
 <section class="stats-grid">
@@ -95,9 +120,15 @@
         <a href="{{ url_for('session_start', mode='listen', scope='all', count=10) }}">🎧 音声リスニング10問</a>
         <a href="{{ url_for('session_start', mode='choice', scope='weak', count=10) }}">💗 苦手単語10問</a>
         <a href="{{ url_for('session_start', mode='choice', scope='favorite', count=10) }}">⭐ お気に入り10問</a>
+        {% if feature_enabled(1) %}<a href="{{ url_for('smart') }}">⚡ スマート学習</a>{% endif %}
         <a href="{{ url_for('review') }}">🐾 復習モード</a>
         <a href="{{ url_for('toeic_modes') }}">📚 TOEICカテゴリ別モード</a>
         <a href="{{ url_for('badges') }}">🏅 称号・バッジ</a>
+        {% if feature_enabled(2) %}<a href="{{ url_for('focus') }}">🧘 集中モード</a>{% endif %}
+        {% if feature_enabled(3) %}<a href="{{ url_for('plan') }}">🗓️ 今日の学習計画</a>{% endif %}
+        {% if feature_enabled(4) %}<a href="{{ url_for('exam') }}">🎯 試験モード</a>{% endif %}
+        {% if feature_enabled(5) %}<a href="{{ url_for('mistakes') }}">🧠 ミスノート</a>{% endif %}
+        <a href="{{ url_for('features') }}">🧩 機能一覧</a>
         <a href="{{ url_for('dashboard') }}">📈 学習記録を見る</a>
         {% if is_master %}<a href="{{ url_for('import_words') }}">📥 CSVインポート</a>{% endif %}
         {% if is_master %}<a href="{{ url_for('tts_page') }}">🔊 音声ファイル管理</a>{% endif %}

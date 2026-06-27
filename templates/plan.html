@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}今日の学習計画 - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="feature-hero plan-hero card">
+    <div>
+        <p class="feature-number">Feature 3</p>
+        <p class="eyebrow">Daily Plan</p>
+        <h1>{{ payload.phase }}</h1>
+        <p class="lead">今日のゴール：{{ payload.goal }}</p>
+        <div class="plan-status-row">
+            <span>Lv.{{ payload.level }} {{ payload.title }}</span>
+            <span>🔥 {{ payload.streak }}日連続</span>
+        </div>
+        <div class="hero-actions">
+            <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='smart', count=10) }}">今日の10問を始める</a>
+            <a class="button secondary" href="{{ url_for('smart') }}">スマート学習を見る</a>
+        </div>
+    </div>
+    <img class="hero-real-cat" src="{{ url_for('static', filename=cat_image('neutral')) }}" alt="計画を見守る猫">
+</section>
+
+<section class="card">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Roadmap</p>
+            <h2>学習ロードマップ</h2>
+        </div>
+    </div>
+    <div class="roadmap-list">
+        {% for item in payload.roadmap %}
+            <article class="roadmap-card">
+                <span>{{ loop.index }}</span>
+                <div>
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.description }}</p>
+                </div>
+                <a class="button secondary small" href="{{ item.url }}">{{ item.button }}</a>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="card">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Auto selected</p>
+            <h2>今日の優先単語トップ5</h2>
+        </div>
+    </div>
+    <div class="smart-word-list compact-smart-list">
+        {% for word in payload.smart_plan.top_words[:5] %}
+            <article class="smart-word-row bucket-{{ word.bucket }}">
+                <div class="smart-score"><strong>{{ word.score }}</strong><span>score</span></div>
+                <div class="smart-word-main">
+                    <div class="smart-word-title"><strong>{{ word.english }}</strong><span>{{ word.category }}</span></div>
+                    <p>{{ word.japanese }}</p>
+                    <small>{{ word.reason }}</small>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}集中モード - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="feature-hero focus-hero card">
+    <div>
+        <p class="feature-number">Feature 2</p>
+        <p class="eyebrow">Focus Mode</p>
+        <h1>{{ payload.title }}</h1>
+        <p class="lead">{{ payload.message }}</p>
+        <div class="focus-timer" data-minutes="25">
+            <strong id="focusTimer">25:00</strong>
+            <span>集中タイマー</span>
+        </div>
+        <div class="hero-actions">
+            <button class="button primary" type="button" id="startFocusTimer">タイマー開始</button>
+            <a class="button secondary" href="{{ url_for('session_start', mode='choice', scope='smart', count=10) }}">おすすめ10問へ</a>
+        </div>
+    </div>
+    <img class="hero-real-cat" src="{{ url_for('static', filename=cat_image('study')) }}" alt="集中する猫">
+</section>
+
+<section class="card">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Flow</p>
+            <h2>25分の進め方</h2>
+        </div>
+        <span class="ranking-count">迷わない設計</span>
+    </div>
+    <div class="focus-step-list">
+        {% for step in payload.steps %}
+            <article class="focus-step">
+                <div class="focus-step-time">{{ step.time }}</div>
+                <div>
+                    <h3>{{ step.title }}</h3>
+                    <p>{{ step.description }}</p>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+
+<script>
+(function() {
+    const el = document.getElementById("focusTimer");
+    const btn = document.getElementById("startFocusTimer");
+    if (!el || !btn) return;
+    let left = 25 * 60;
+    let timer = null;
+    function render() {
+        const m = String(Math.floor(left / 60)).padStart(2, "0");
+        const s = String(left % 60).padStart(2, "0");
+        el.textContent = `${m}:${s}`;
+    }
+    btn.addEventListener("click", () => {
+        if (timer) return;
+        btn.textContent = "集中しています";
+        timer = setInterval(() => {
+            left -= 1;
+            if (left <= 0) {
+                clearInterval(timer);
+                timer = null;
+                left = 0;
+                btn.textContent = "完了";
+            }
+            render();
+        }, 1000);
+    });
+    render();
+})();
+</script>
+{% endblock %}

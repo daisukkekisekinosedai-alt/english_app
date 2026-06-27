@@ -3,6 +3,8 @@
 {% block title %}復習モード - にゃんにゃんイングリッシュ{% endblock %}
 
 {% block content %}
+<section class="card smart-review-cta"><h2>迷ったらスマート学習</h2><p class="muted">復習・弱点・新規を自動で混ぜた10問を作ります。</p><a class="button primary" href="{{ url_for('session_start', mode='choice', scope='smart', count=10) }}">⚡ おすすめ10問</a></section>
+
 <section class="card">
     <p class="eyebrow">Review</p>
     <h1>復習モード</h1>

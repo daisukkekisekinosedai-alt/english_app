@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}試験モード - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="feature-hero exam-hero card">
+    <div>
+        <p class="feature-number">Feature 4</p>
+        <p class="eyebrow">Exam Mode</p>
+        <h1>試験モード</h1>
+        <p class="lead">{{ payload.advice }}</p>
+        <div class="exam-readiness">{{ payload.readiness }}</div>
+    </div>
+    <img class="hero-real-cat" src="{{ url_for('static', filename=cat_image('quiz')) }}" alt="試験に挑む猫">
+</section>
+
+<section class="exam-drill-grid">
+    {% for drill in payload.drills %}
+        <article class="card exam-drill-card">
+            <span class="tag">{{ drill.tag }}</span>
+            <h2>{{ drill.title }}</h2>
+            <p class="muted">{{ drill.description }}</p>
+            <a class="button primary" href="{{ drill.url }}">開始する</a>
+        </article>
+    {% endfor %}
+</section>
+
+<section class="card">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Exam Tips</p>
+            <h2>使い方</h2>
+        </div>
+    </div>
+    <div class="tip-grid">
+        <div><strong>1</strong><p>試験モードでミスを出す</p></div>
+        <div><strong>2</strong><p>ミスノートで回収する</p></div>
+        <div><strong>3</strong><p>翌日おすすめ10問で再確認する</p></div>
+    </div>
+</section>
+{% endblock %}

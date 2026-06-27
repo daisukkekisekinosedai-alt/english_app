@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}機能一覧 - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="feature-hero card">
+    <div>
+        <p class="eyebrow">Feature Modules</p>
+        <h1>機能一覧</h1>
+        <p class="lead">機能は番号で管理しています。あとから「1,4,5だけ残す」のように選べます。</p>
+        <p class="muted">環境変数 <code>ENABLED_FEATURES=1,4,5</code> のように指定すると、その番号だけ有効になります。</p>
+    </div>
+</section>
+
+<section class="feature-module-grid">
+    {% for feature in feature_modules %}
+        <article class="card feature-module-card {% if feature_enabled(feature.id) %}enabled{% else %}disabled{% endif %}">
+            <div class="feature-module-number">{{ feature.id }}</div>
+            <div>
+                <h2>{{ feature.emoji }} {{ feature.name }}</h2>
+                <p>{{ feature.description }}</p>
+                <span class="tag">{% if feature_enabled(feature.id) %}有効{% else %}無効{% endif %}</span>
+                {% if feature_enabled(feature.id) and feature.route %}
+                    <a class="button secondary small" href="{{ url_for(feature.route) }}">開く</a>
+                {% endif %}
+            </div>
+        </article>
+    {% endfor %}
+</section>
+{% endblock %}

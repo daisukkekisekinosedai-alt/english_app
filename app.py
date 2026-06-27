@@ -32,6 +32,102 @@ try:
 except Exception:
     pyttsx3 = None
 
+
+# =========================================================
+# Numbered feature modules
+# =========================================================
+# 後から「1,4,5だけ使う」のように切り替えやすくするための機能番号です。
+# 環境変数 ENABLED_FEATURES に "1,4,5" のように指定すると、その番号だけ有効になります。
+FEATURE_MODULES = [
+    {
+        "id": 1,
+        "key": "smart",
+        "name": "スマート学習エンジン",
+        "short_name": "スマート学習",
+        "route": "smart",
+        "emoji": "⚡",
+        "description": "履歴を見て、今日やるべき単語を自動選定します。",
+        "default_enabled": True,
+    },
+    {
+        "id": 2,
+        "key": "focus",
+        "name": "集中モード",
+        "short_name": "集中",
+        "route": "focus",
+        "emoji": "🧘",
+        "description": "25分集中・10問・復習の流れを1画面にまとめます。",
+        "default_enabled": True,
+    },
+    {
+        "id": 3,
+        "key": "plan",
+        "name": "今日の学習計画",
+        "short_name": "計画",
+        "route": "plan",
+        "emoji": "🗓️",
+        "description": "今日のミッションと学習ロードマップを自動で出します。",
+        "default_enabled": True,
+    },
+    {
+        "id": 4,
+        "key": "exam",
+        "name": "試験モード",
+        "short_name": "試験",
+        "route": "exam",
+        "emoji": "🎯",
+        "description": "20問・30問の本番寄りドリルで得点力を確認します。",
+        "default_enabled": True,
+    },
+    {
+        "id": 5,
+        "key": "mistakes",
+        "name": "ミスノート",
+        "short_name": "ミス",
+        "route": "mistakes",
+        "emoji": "🧠",
+        "description": "間違えた単語を理由付きで集約し、復習導線を作ります。",
+        "default_enabled": True,
+    },
+]
+
+FEATURE_MODULE_MAP = {item["id"]: item for item in FEATURE_MODULES}
+FEATURE_MODULE_KEY_MAP = {item["key"]: item for item in FEATURE_MODULES}
+
+
+def enabled_feature_ids() -> set[int]:
+    raw = os.environ.get("ENABLED_FEATURES", "").strip()
+    if not raw:
+        return {item["id"] for item in FEATURE_MODULES if item.get("default_enabled", True)}
+
+    ids: set[int] = set()
+    for part in re.split(r"[,、\s]+", raw):
+        if not part:
+            continue
+        try:
+            ids.add(int(part))
+        except ValueError:
+            pass
+    return ids
+
+
+def feature_enabled(feature_id: int | str) -> bool:
+    if isinstance(feature_id, str):
+        item = FEATURE_MODULE_KEY_MAP.get(feature_id)
+        if not item:
+            return False
+        feature_id = item["id"]
+    try:
+        return int(feature_id) in enabled_feature_ids()
+    except Exception:
+        return False
+
+
+def enabled_feature_modules() -> list[dict]:
+    enabled = enabled_feature_ids()
+    return [item for item in FEATURE_MODULES if item["id"] in enabled]
+
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 
@@ -887,6 +983,368 @@ def get_due_review_count(user_id: int | None) -> int:
     return row["count"] if row else 0
 
 
+def parse_datetime_safe(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(str(value)[:19], fmt)
+        except Exception:
+            continue
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "")[:19])
+    except Exception:
+        return None
+
+
+def days_since(value: str | None) -> int | None:
+    dt = parse_datetime_safe(value)
+    if dt is None:
+        return None
+    return max(0, (datetime.now() - dt).days)
+
+
+def smart_scope_label(scope: str) -> str:
+    labels = {
+        "all": "全単語",
+        "weak": "苦手単語",
+        "favorite": "お気に入り",
+        "today_wrong": "今日のミス",
+        "repeat_wrong": "繰り返しミス",
+        "stale": "久しぶりの単語",
+        "smart": "おすすめ",
+    }
+    if scope.startswith("category:"):
+        return scope.split(":", 1)[1]
+    return labels.get(scope, scope)
+
+
+def get_word_learning_profiles(user_id: int | None = None) -> list[dict]:
+    uid = user_id if user_id is not None else current_user_id()
+    if uid is None:
+        return []
+
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            w.id,
+            w.english,
+            w.japanese,
+            w.category,
+            w.part_of_speech,
+            w.level,
+            COUNT(l.id) AS attempts,
+            SUM(CASE WHEN l.is_correct = 1 THEN 1 ELSE 0 END) AS correct_count,
+            SUM(CASE WHEN l.is_correct = 0 THEN 1 ELSE 0 END) AS wrong_count,
+            MAX(l.created_at) AS last_answered_at,
+            MAX(CASE WHEN l.is_correct = 0 THEN l.created_at ELSE NULL END) AS last_wrong_at,
+            MAX(CASE WHEN l.is_correct = 1 THEN l.created_at ELSE NULL END) AS last_correct_at
+        FROM words w
+        LEFT JOIN study_logs l
+          ON l.word_id = w.id
+         AND l.user_id = ?
+        GROUP BY w.id
+        """,
+        (uid,),
+    ).fetchall()
+    conn.close()
+
+    profiles = []
+    for row in rows:
+        attempts = int(row["attempts"] or 0)
+        correct_count = int(row["correct_count"] or 0)
+        wrong_count = int(row["wrong_count"] or 0)
+        accuracy = round((correct_count / attempts) * 100, 1) if attempts else None
+        last_days = days_since(row["last_answered_at"])
+        wrong_days = days_since(row["last_wrong_at"])
+
+        score = 0
+        reason = "新規"
+        bucket = "new"
+
+        if attempts == 0:
+            score = 86
+            reason = "まだ一度も解いていない新規単語"
+            bucket = "new"
+        else:
+            # 復習間隔: ミスが多いほど短く、正解が多いほど長く
+            if wrong_count >= 3:
+                due_after = 1
+            elif wrong_count >= 1:
+                due_after = 2
+            elif correct_count >= 3:
+                due_after = 10
+            else:
+                due_after = 4
+
+            is_due = last_days is not None and last_days >= due_after
+            if wrong_count > 0 and wrong_days is not None and wrong_days >= 1:
+                score = 95 + min(wrong_count * 4, 20)
+                reason = f"{wrong_count}回ミス。復習タイミング"
+                bucket = "due"
+            elif accuracy is not None and accuracy < 60 and attempts >= 2:
+                score = 88 + min(wrong_count * 3, 12)
+                reason = f"正答率{accuracy}%で弱点候補"
+                bucket = "weak"
+            elif is_due:
+                score = 74 + min(last_days or 0, 18)
+                reason = f"{last_days}日ぶり。忘却防止"
+                bucket = "stale"
+            elif attempts == 1:
+                score = 68
+                reason = "1回だけ解いた単語。定着確認"
+                bucket = "followup"
+            else:
+                score = 36
+                reason = "定着済み候補"
+                bucket = "mastered"
+
+        profiles.append(
+            {
+                "id": row["id"],
+                "english": row["english"],
+                "japanese": row["japanese"],
+                "category": row["category"] or "未分類",
+                "part_of_speech": normalize_part_of_speech(row["part_of_speech"]) or "other",
+                "part_of_speech_label": part_of_speech_label(row["part_of_speech"]),
+                "level": row["level"],
+                "attempts": attempts,
+                "correct_count": correct_count,
+                "wrong_count": wrong_count,
+                "accuracy": accuracy,
+                "last_answered_at": row["last_answered_at"],
+                "last_wrong_at": row["last_wrong_at"],
+                "days_since_last": last_days,
+                "score": int(score),
+                "reason": reason,
+                "bucket": bucket,
+            }
+        )
+
+    profiles.sort(key=lambda item: (-item["score"], item["attempts"], item["english"].lower()))
+    return profiles
+
+
+def get_smart_candidate_ids(user_id: int | None = None, limit: int = 30) -> list[int]:
+    profiles = get_word_learning_profiles(user_id)
+    if not profiles:
+        return []
+
+    # バランスよく選ぶ: 復習/弱点/新規/忘却防止を混ぜる
+    buckets = {
+        "due": [],
+        "weak": [],
+        "new": [],
+        "stale": [],
+        "followup": [],
+        "mastered": [],
+    }
+    for profile in profiles:
+        buckets.setdefault(profile["bucket"], []).append(profile)
+
+    selected = []
+    recipe = [
+        ("due", 4),
+        ("weak", 3),
+        ("stale", 2),
+        ("new", 3),
+        ("followup", 2),
+        ("mastered", 1),
+    ]
+
+    used = set()
+    for bucket, take in recipe:
+        for profile in buckets.get(bucket, [])[:take]:
+            if profile["id"] not in used:
+                selected.append(profile)
+                used.add(profile["id"])
+
+    for profile in profiles:
+        if len(selected) >= limit:
+            break
+        if profile["id"] not in used:
+            selected.append(profile)
+            used.add(profile["id"])
+
+    return [item["id"] for item in selected[:limit]]
+
+
+def get_smart_breakdown(profiles: list[dict]) -> dict:
+    buckets = {
+        "due": {"label": "復習優先", "count": 0},
+        "weak": {"label": "弱点候補", "count": 0},
+        "new": {"label": "新規単語", "count": 0},
+        "stale": {"label": "忘却防止", "count": 0},
+        "followup": {"label": "定着確認", "count": 0},
+        "mastered": {"label": "定着済み", "count": 0},
+    }
+    for profile in profiles:
+        if profile["bucket"] in buckets:
+            buckets[profile["bucket"]]["count"] += 1
+    return buckets
+
+
+def get_category_weakness_profiles(user_id: int | None = None, limit: int = 5) -> list[dict]:
+    uid = user_id if user_id is not None else current_user_id()
+    if uid is None:
+        return []
+
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            COALESCE(NULLIF(w.category, ''), '未分類') AS category,
+            COUNT(l.id) AS attempts,
+            SUM(CASE WHEN l.is_correct = 1 THEN 1 ELSE 0 END) AS correct_count,
+            SUM(CASE WHEN l.is_correct = 0 THEN 1 ELSE 0 END) AS wrong_count
+        FROM study_logs l
+        JOIN words w ON w.id = l.word_id
+        WHERE l.user_id = ?
+        GROUP BY COALESCE(NULLIF(w.category, ''), '未分類')
+        HAVING attempts >= 3
+        ORDER BY (1.0 * wrong_count / attempts) DESC, attempts DESC
+        LIMIT ?
+        """,
+        (uid, limit),
+    ).fetchall()
+    conn.close()
+
+    result = []
+    for row in rows:
+        attempts = int(row["attempts"] or 0)
+        correct = int(row["correct_count"] or 0)
+        accuracy = round((correct / attempts) * 100, 1) if attempts else 0
+        result.append({
+            "category": row["category"],
+            "attempts": attempts,
+            "correct_count": correct,
+            "wrong_count": int(row["wrong_count"] or 0),
+            "accuracy": accuracy,
+        })
+    return result
+
+
+def get_pos_weakness_profiles(user_id: int | None = None, limit: int = 5) -> list[dict]:
+    uid = user_id if user_id is not None else current_user_id()
+    if uid is None:
+        return []
+
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            COALESCE(NULLIF(w.part_of_speech, ''), 'other') AS part_of_speech,
+            COUNT(l.id) AS attempts,
+            SUM(CASE WHEN l.is_correct = 1 THEN 1 ELSE 0 END) AS correct_count,
+            SUM(CASE WHEN l.is_correct = 0 THEN 1 ELSE 0 END) AS wrong_count
+        FROM study_logs l
+        JOIN words w ON w.id = l.word_id
+        WHERE l.user_id = ?
+        GROUP BY COALESCE(NULLIF(w.part_of_speech, ''), 'other')
+        HAVING attempts >= 3
+        ORDER BY (1.0 * wrong_count / attempts) DESC, attempts DESC
+        LIMIT ?
+        """,
+        (uid, limit),
+    ).fetchall()
+    conn.close()
+
+    result = []
+    for row in rows:
+        attempts = int(row["attempts"] or 0)
+        correct = int(row["correct_count"] or 0)
+        accuracy = round((correct / attempts) * 100, 1) if attempts else 0
+        pos = normalize_part_of_speech(row["part_of_speech"]) or "other"
+        result.append({
+            "part_of_speech": pos,
+            "label": part_of_speech_label(pos),
+            "attempts": attempts,
+            "correct_count": correct,
+            "wrong_count": int(row["wrong_count"] or 0),
+            "accuracy": accuracy,
+        })
+    return result
+
+
+def build_smart_study_plan(user_id: int | None = None) -> dict:
+    uid = user_id if user_id is not None else current_user_id()
+    stats = get_stats(uid) if uid is not None else get_stats()
+    profiles = get_word_learning_profiles(uid)
+    top_words = profiles[:12]
+    breakdown = get_smart_breakdown(profiles)
+    category_weakness = get_category_weakness_profiles(uid)
+    pos_weakness = get_pos_weakness_profiles(uid)
+
+    due_count = breakdown["due"]["count"]
+    weak_count = breakdown["weak"]["count"]
+    new_count = breakdown["new"]["count"]
+    stale_count = breakdown["stale"]["count"]
+
+    if not profiles:
+        title = "単語を入れると、学習プランを自動生成できます"
+        message = "まずはCSVインポートか単語追加から始めましょう。履歴が貯まると、あなた専用の復習順に並びます。"
+        mode = "empty"
+    elif stats["total_logs"] == 0:
+        title = "最初の10問で診断を開始します"
+        message = "まだ回答履歴がないので、新規単語から10問選びます。1回解くと、次回から弱点と復習タイミングを自動判定できます。"
+        mode = "start"
+    elif due_count >= 5:
+        title = "今日は復習を先に回収する日です"
+        message = f"復習優先の単語が{due_count}語あります。おすすめ10問では、忘れやすい単語を先に出します。"
+        mode = "review"
+    elif weak_count >= 5:
+        title = "弱点を潰すと一気に伸びます"
+        message = f"弱点候補が{weak_count}語あります。今日は正答率が低い単語を中心に出します。"
+        mode = "weak"
+    elif stale_count >= 10:
+        title = "忘却防止の日です"
+        message = f"7日以上触れていない単語が{stale_count}語あります。忘れる前に軽く確認しましょう。"
+        mode = "stale"
+    else:
+        title = "今日はバランス型で進めます"
+        message = "復習・弱点・新規を混ぜたおすすめ10問を作りました。迷ったらこれだけでOKです。"
+        mode = "balanced"
+
+    missions = [
+        {
+            "title": "おすすめ10問を完走",
+            "description": "復習・弱点・新規を自動で混ぜた10問です。",
+            "done": False,
+            "url": url_for("session_start", mode="choice", scope="smart", count=10),
+            "button": "おすすめ10問",
+        },
+        {
+            "title": "復習対象を1セット回収",
+            "description": f"復習優先: {due_count}語",
+            "done": due_count == 0 and stats["total_logs"] > 0,
+            "url": url_for("session_start", mode="choice", scope="smart", count=10),
+            "button": "復習する",
+        },
+        {
+            "title": "弱点を確認",
+            "description": f"弱点候補: {weak_count}語",
+            "done": weak_count == 0 and stats["total_logs"] >= 10,
+            "url": url_for("weak"),
+            "button": "弱点を見る",
+        },
+    ]
+
+    return {
+        "title": title,
+        "message": message,
+        "mode": mode,
+        "stats": stats,
+        "profiles": profiles,
+        "top_words": top_words,
+        "breakdown": breakdown,
+        "category_weakness": category_weakness,
+        "pos_weakness": pos_weakness,
+        "missions": missions,
+    }
+
+
+
 def build_learning_coach(stats: dict, user_id: int | None = None) -> dict:
     """
     にゃんコーチのコメントを作ります。
@@ -974,7 +1432,20 @@ def build_session_coach(data: dict, accuracy: float) -> dict:
     wrong_count = len(wrong_answers)
     wrong_preview = [a.get("english") for a in wrong_answers[:3] if a.get("english")]
 
-    if accuracy == 100:
+    if data.get("scope") == "smart":
+        if accuracy >= 80:
+            title = "スマート学習、かなり効いてるにゃ"
+            message = "おすすめ10問で高得点です。復習・弱点・新規がバランスよく回収できています。明日もこのボタンだけ押せばOKです。"
+            tone = "good"
+        elif accuracy >= 60:
+            title = "今日のおすすめ単語は当たりだにゃ"
+            message = "スマート学習でミスが出た単語は、次回さらに優先されます。つまり今日のミスは明日の伸びしろです。"
+            tone = "review"
+        else:
+            title = "弱点発見に成功したにゃ"
+            message = "おすすめ10問で苦戦した単語は、復習優先に回ります。次回はこの範囲を重点的に出します。"
+            tone = "weak"
+    elif accuracy == 100:
         title = "完璧にゃ。今日は勝ち切ったにゃ"
         message = "10問満点です。明日は新しい単語を混ぜるか、苦手カテゴリに挑戦するとさらに伸びます。"
         tone = "perfect"
@@ -1017,6 +1488,9 @@ def inject_current_user():
         "cat_type_label": cat_type_label,
         "part_of_speech_label": part_of_speech_label,
         "part_of_speech_labels": PART_OF_SPEECH_LABELS,
+        "feature_enabled": feature_enabled,
+        "feature_modules": FEATURE_MODULES,
+        "enabled_feature_modules": enabled_feature_modules(),
     }
 
 
@@ -1231,6 +1705,9 @@ def get_categories() -> list[str]:
 
 
 def get_candidate_ids(scope: str = "all") -> list[int]:
+    if scope == "smart":
+        return get_smart_candidate_ids(current_user_id())
+
     conn = get_db_connection()
 
     if scope == "weak":
@@ -2647,14 +3124,20 @@ def session_start():
     if not candidate_ids:
         return redirect(url_for("add_word"))
 
-    random.shuffle(candidate_ids)
-
-    if len(candidate_ids) >= count:
+    if scope == "smart":
         ids = candidate_ids[:count]
+        if len(ids) < count and candidate_ids:
+            while len(ids) < count:
+                ids.append(candidate_ids[len(ids) % len(candidate_ids)])
     else:
-        ids = candidate_ids[:]
-        while len(ids) < count:
-            ids.append(random.choice(candidate_ids))
+        random.shuffle(candidate_ids)
+
+        if len(candidate_ids) >= count:
+            ids = candidate_ids[:count]
+        else:
+            ids = candidate_ids[:]
+            while len(ids) < count:
+                ids.append(random.choice(candidate_ids))
 
     session["quiz_session"] = {
         "ids": ids,
@@ -3041,6 +3524,261 @@ def badges():
     uid = require_user_id()
     stats = get_stats(uid)
     return render_template("badges.html", stats=stats, badges=stats["gamification"]["badges"])
+
+
+def build_focus_payload(user_id: int) -> dict:
+    plan = build_smart_study_plan(user_id)
+    due = plan["breakdown"]["due"]["count"]
+    weak = plan["breakdown"]["weak"]["count"]
+    if due >= 5:
+        title = "復習回収フォーカス"
+        message = "今日は新しいことより、忘れかけた単語を取り戻すのが効率的です。"
+    elif weak >= 5:
+        title = "弱点つぶしフォーカス"
+        message = "正答率が低い単語を短時間で回収しましょう。"
+    else:
+        title = "バランス集中フォーカス"
+        message = "復習・弱点・新規を混ぜて、25分で一気に進めます。"
+
+    return {
+        "title": title,
+        "message": message,
+        "plan": plan,
+        "steps": [
+            {"time": "3分", "title": "準備", "description": "スマート学習ページで今日の優先単語を確認。"},
+            {"time": "12分", "title": "おすすめ10問", "description": "迷わず10問を完走。ミスは気にせず記録を作る。"},
+            {"time": "7分", "title": "ミス回収", "description": "ミスノートで間違えた単語を見直す。"},
+            {"time": "3分", "title": "仕上げ", "description": "もう一度おすすめ10問か、苦手カテゴリを1セット。"},
+        ],
+    }
+
+
+def build_daily_plan(user_id: int) -> dict:
+    smart_plan = build_smart_study_plan(user_id)
+    stats = smart_plan["stats"]
+    game = stats.get("gamification", {}).get("game", {})
+    streak = stats.get("gamification", {}).get("streak", {})
+
+    total_logs = int(stats.get("total_logs", 0) or 0)
+    accuracy = float(stats.get("accuracy", 0) or 0)
+
+    if total_logs < 20:
+        phase = "診断フェーズ"
+        goal = "まずは20問分の回答履歴を作る"
+    elif accuracy < 70:
+        phase = "弱点補強フェーズ"
+        goal = "苦手単語を優先して正答率70%を超える"
+    elif streak.get("current", 0) < 3:
+        phase = "習慣化フェーズ"
+        goal = "3日連続学習を作る"
+    else:
+        phase = "得点力強化フェーズ"
+        goal = "おすすめ10問で80%以上を安定させる"
+
+    roadmap = [
+        {
+            "title": "今日",
+            "description": "おすすめ10問を1回完走。ミスが出たらミスノートへ。",
+            "url": url_for("session_start", mode="choice", scope="smart", count=10),
+            "button": "今日の10問",
+        },
+        {
+            "title": "明日",
+            "description": "今日ミスした単語が自動で復習優先に回ります。",
+            "url": url_for("smart"),
+            "button": "スマート学習",
+        },
+        {
+            "title": "今週",
+            "description": "苦手カテゴリを1つ選んで、重点的に10問ずつ回します。",
+            "url": url_for("mistakes") if feature_enabled(5) else url_for("weak"),
+            "button": "弱点を見る",
+        },
+    ]
+
+    return {
+        "phase": phase,
+        "goal": goal,
+        "smart_plan": smart_plan,
+        "roadmap": roadmap,
+        "level": game.get("level", 1),
+        "title": game.get("title", ""),
+        "streak": streak.get("current", 0),
+    }
+
+
+def build_exam_payload(user_id: int) -> dict:
+    plan = build_smart_study_plan(user_id)
+    stats = plan["stats"]
+    accuracy = float(stats.get("accuracy", 0) or 0)
+    total_logs = int(stats.get("total_logs", 0) or 0)
+
+    if total_logs < 30:
+        readiness = "診断中"
+        advice = "まずは30問ほど解いて、試験モードの判定材料を増やしましょう。"
+    elif accuracy >= 85:
+        readiness = "本番寄りOK"
+        advice = "20問・30問でスピードと安定感を確認しましょう。"
+    elif accuracy >= 70:
+        readiness = "実戦練習向き"
+        advice = "試験モードでミスを出し、ミスノートで回収する流れが効果的です。"
+    else:
+        readiness = "基礎固め優先"
+        advice = "試験モードは短めの20問から。終わったらミスノートで復習しましょう。"
+
+    return {
+        "readiness": readiness,
+        "advice": advice,
+        "stats": stats,
+        "plan": plan,
+        "drills": [
+            {
+                "title": "スマート20問",
+                "description": "復習・弱点・新規を混ぜた実戦ドリル。",
+                "url": url_for("session_start", mode="choice", scope="smart", count=20),
+                "tag": "おすすめ",
+            },
+            {
+                "title": "スマート30問",
+                "description": "少し長めに集中して、得点力を確認。",
+                "url": url_for("session_start", mode="choice", scope="smart", count=30),
+                "tag": "本番寄り",
+            },
+            {
+                "title": "リスニング20問",
+                "description": "音声で聞いて意味を取る練習。",
+                "url": url_for("session_start", mode="listen", scope="smart", count=20),
+                "tag": "音声",
+            },
+        ],
+    }
+
+
+def get_mistake_notebook(user_id: int, limit: int = 80) -> dict:
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            w.id,
+            w.english,
+            w.japanese,
+            w.example,
+            w.category,
+            w.part_of_speech,
+            w.level,
+            COUNT(l.id) AS wrong_count,
+            MAX(l.created_at) AS last_wrong_at,
+            GROUP_CONCAT(l.user_answer, ' / ') AS wrong_answers
+        FROM study_logs l
+        JOIN words w ON w.id = l.word_id
+        WHERE l.user_id = ?
+          AND l.is_correct = 0
+        GROUP BY w.id
+        ORDER BY wrong_count DESC, datetime(last_wrong_at) DESC
+        LIMIT ?
+        """,
+        (user_id, limit),
+    ).fetchall()
+    conn.close()
+
+    items = []
+    for row in rows:
+        wrong_count = int(row["wrong_count"] or 0)
+        last_days = days_since(row["last_wrong_at"])
+        if wrong_count >= 3:
+            priority = "最優先"
+            tone = "high"
+        elif last_days is not None and last_days <= 2:
+            priority = "近日ミス"
+            tone = "recent"
+        else:
+            priority = "復習候補"
+            tone = "normal"
+
+        items.append({
+            "id": row["id"],
+            "english": row["english"],
+            "japanese": row["japanese"],
+            "example": row["example"],
+            "category": row["category"] or "未分類",
+            "part_of_speech": normalize_part_of_speech(row["part_of_speech"]) or "other",
+            "part_of_speech_label": part_of_speech_label(row["part_of_speech"]),
+            "level": row["level"],
+            "wrong_count": wrong_count,
+            "last_wrong_at": row["last_wrong_at"],
+            "days_since_last_wrong": last_days,
+            "wrong_answers": row["wrong_answers"] or "",
+            "priority": priority,
+            "tone": tone,
+        })
+
+    return {
+        "items": items,
+        "total": len(items),
+        "high_count": sum(1 for item in items if item["tone"] == "high"),
+        "recent_count": sum(1 for item in items if item["tone"] == "recent"),
+    }
+
+
+
+@app.route("/smart")
+@login_required
+def smart():
+    if not feature_enabled(1):
+        return redirect(url_for("index"))
+    uid = require_user_id()
+    plan = build_smart_study_plan(uid)
+    return render_template("smart.html", plan=plan)
+
+
+
+@app.route("/features")
+@login_required
+def features():
+    return render_template("features.html")
+
+
+
+@app.route("/focus")
+@login_required
+def focus():
+    if not feature_enabled(2):
+        return redirect(url_for("index"))
+    uid = require_user_id()
+    payload = build_focus_payload(uid)
+    return render_template("focus.html", payload=payload)
+
+
+@app.route("/plan")
+@login_required
+def plan():
+    if not feature_enabled(3):
+        return redirect(url_for("index"))
+    uid = require_user_id()
+    payload = build_daily_plan(uid)
+    return render_template("plan.html", payload=payload)
+
+
+@app.route("/exam")
+@login_required
+def exam():
+    if not feature_enabled(4):
+        return redirect(url_for("index"))
+    uid = require_user_id()
+    payload = build_exam_payload(uid)
+    return render_template("exam.html", payload=payload)
+
+
+@app.route("/mistakes")
+@login_required
+def mistakes():
+    if not feature_enabled(5):
+        return redirect(url_for("index"))
+    uid = require_user_id()
+    notebook = get_mistake_notebook(uid)
+    return render_template("mistakes.html", notebook=notebook)
+
+
 
 
 @app.route("/review")
