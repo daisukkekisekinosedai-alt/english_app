@@ -20,12 +20,12 @@
     </div>
 </section>
 
-<section class="cat-mood-strip card">
-    <img src="{{ url_for('static', filename=cat_image('neutral')) }}" alt="通常の子猫">
+<section class="cat-mood-strip card cat-home-reaction cat-reaction-{{ home_cat_message.effect }}">
+    <img src="{{ url_for('static', filename=cat_image('neutral')) }}" alt="今日の相棒ねこ">
     <div>
         <p class="eyebrow">Today’s buddy</p>
-        <h2>今日の相棒ねこ</h2>
-        <p class="muted">正解したらうれしい猫、不正解ならしょんぼり猫が出ます。地味に応援してくれるやつです。</p>
+        <h2>{{ home_cat_message.title }}</h2>
+        <p class="muted">{{ home_cat_message.message }}</p>
     </div>
 </section>
 

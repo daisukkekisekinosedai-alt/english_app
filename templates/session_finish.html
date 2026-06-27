@@ -22,20 +22,16 @@
     <div class="score-big">{{ data.correct }} / {{ data.total }}</div>
     <p class="lead">正答率 {{ accuracy }}%</p>
 
-    {% if accuracy >= 90 %}
-        {% set finish_cat = cat_image('finish_good') %}
-        {% set finish_message = 'ほぼ完璧。猫もテンション上がってます。' %}
-    {% elif accuracy >= 60 %}
-        {% set finish_cat = cat_image('finish_ok') %}
-        {% set finish_message = 'いい感じ。休みながらもう一周いけます。' %}
-    {% else %}
-        {% set finish_cat = cat_image('finish_low') %}
-        {% set finish_message = '今日は伸びしろ回。苦手を拾えば一気に強くなります。' %}
-    {% endif %}
-
-    <div class="finish-cat-panel">
-        <img src="{{ url_for('static', filename=finish_cat) }}" alt="結果に合わせた子猫">
-        <p>{{ finish_message }}</p>
+    <div class="finish-cat-panel cat-reaction-{{ finish_reaction.effect }}">
+        <img src="{{ url_for('static', filename=cat_image(finish_reaction.cat_state)) }}" alt="{{ finish_reaction.title }}">
+        <div>
+            <span class="reaction-badge">{{ finish_reaction.badge }}</span>
+            <strong>{{ finish_reaction.title }}</strong>
+            <p>{{ finish_reaction.message }}</p>
+            {% if data.best_streak >= 3 %}
+                <small class="reaction-mini">今回の最高連続正解: {{ data.best_streak }} 問</small>
+            {% endif %}
+        </div>
     </div>
 
     <div class="hero-actions">

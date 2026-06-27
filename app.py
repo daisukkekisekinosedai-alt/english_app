@@ -1122,6 +1122,143 @@ def get_choices(correct_word: sqlite3.Row, limit: int = 4) -> list[str]:
     return choices
 
 
+
+def get_recent_correct_streak(user_id: int | None, limit: int = 50) -> int:
+    if user_id is None:
+        return 0
+
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT is_correct
+        FROM study_logs
+        WHERE user_id = ?
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (user_id, limit),
+    ).fetchall()
+    conn.close()
+
+    streak = 0
+    for row in rows:
+        if row["is_correct"]:
+            streak += 1
+        else:
+            break
+    return streak
+
+
+def get_cat_reaction(is_correct: bool, streak: int = 0, finished: bool = False, accuracy: float | None = None) -> dict:
+    """
+    猫のリアクションを1か所で管理します。
+    テンプレート側は title/message/effect/cat_state/badge を表示するだけです。
+    """
+    if finished:
+        score = accuracy or 0
+        if score == 100:
+            return {
+                "title": "満点にゃ！天才すぎる！",
+                "message": "10問全部正解。猫、完全にお祭りモードです。今日は語彙の神かもしれない。",
+                "effect": "festival",
+                "cat_state": "finish_good",
+                "badge": "🎉 PERFECT",
+            }
+        if score >= 80:
+            return {
+                "title": "ナイス完走にゃ！",
+                "message": "かなり良いペース。猫も肉球で拍手しています。もう一周したらさらに固まりそう。",
+                "effect": "confetti",
+                "cat_state": "finish_good",
+                "badge": "👏 GREAT",
+            }
+        if score >= 60:
+            return {
+                "title": "いい感じにゃ。",
+                "message": "合格ライン。焦らず復習すればちゃんと伸びます。猫も横で見守っています。",
+                "effect": "soft",
+                "cat_state": "finish_ok",
+                "badge": "🐾 GOOD",
+            }
+        return {
+            "title": "伸びしろ回にゃ。",
+            "message": "今日は回収日。間違えた単語だけ復習すると、次はかなり取り返せます。",
+            "effect": "none",
+            "cat_state": "finish_low",
+            "badge": "🌱 REVIEW",
+        }
+
+    if is_correct:
+        if streak >= 10:
+            return {
+                "title": f"{streak}問連続正解！猫、祭りです。",
+                "message": "ここまで来たら完全にゾーン。語彙力がもふもふ伸びています。",
+                "effect": "festival",
+                "cat_state": "correct",
+                "badge": "🔥 STREAK",
+            }
+        if streak >= 5:
+            return {
+                "title": f"{streak}問連続正解にゃ！",
+                "message": "かなり乗ってます。猫も前のめりで応援中。",
+                "effect": "confetti",
+                "cat_state": "correct",
+                "badge": "✨ COMBO",
+            }
+        if streak >= 3:
+            return {
+                "title": "3問連続正解！肉球拍手にゃ。",
+                "message": "いいリズム。ここから連勝を伸ばしていこう。",
+                "effect": "clap",
+                "cat_state": "correct",
+                "badge": "👏 NICE",
+            }
+        return {
+            "title": "やった、正解にゃ。",
+            "message": "この調子で語彙力をもふもふ育てよう。",
+            "effect": "sparkle",
+            "cat_state": "correct",
+            "badge": "🐾 OK",
+        }
+
+    return {
+        "title": "惜しいにゃ…。",
+        "message": "でもミスった単語は伸びしろ。次で回収しよう。",
+        "effect": "sad",
+        "cat_state": "wrong",
+        "badge": "💧 REVIEW",
+    }
+
+
+def get_home_cat_message(stats: dict) -> dict:
+    streak = stats.get("gamification", {}).get("streak", {}).get("current", 0)
+    total_logs = stats.get("total_logs", 0)
+
+    if streak >= 7:
+        return {
+            "title": f"{streak}日連続で来てるにゃ。",
+            "message": "これはもう習慣化の勝ち。猫も玄関で待ってます。",
+            "effect": "sparkle",
+        }
+    if streak >= 3:
+        return {
+            "title": f"{streak}日連続学習中にゃ。",
+            "message": "良い流れ。今日も10問だけやればかなり強いです。",
+            "effect": "soft",
+        }
+    if total_logs > 0:
+        return {
+            "title": "今日も来たにゃ。",
+            "message": "まずは1問でも勝ち。続けた人から語彙が増えます。",
+            "effect": "none",
+        }
+    return {
+        "title": "最初の一問、いくにゃ？",
+        "message": "猫が横で見ています。まずは軽く10問から。",
+        "effect": "none",
+    }
+
+
 def record_answer(word_id: int, mode: str, user_answer: str, test_session_id: int | None = None) -> tuple[sqlite3.Row | None, bool]:
     word = fetch_word(word_id)
     if word is None:
@@ -1772,7 +1909,8 @@ def healthz():
 @login_required
 def index():
     stats = get_stats()
-    return render_template("index.html", stats=stats)
+    home_cat_message = get_home_cat_message(stats)
+    return render_template("index.html", stats=stats, home_cat_message=home_cat_message)
 
 
 @app.route("/words")
@@ -1966,7 +2104,7 @@ def seed_words():
                 INSERT INTO words (english, japanese, example, memo, audio_text, category, part_of_speech, level, favorite, created_by_user_id, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
                 """,
-                (english, japanese, example, memo, audio_text, category, part_of_speech, level, current_user_id(), now_text(), now_text()),
+                (english, japanese, example, memo, audio_text, category, infer_part_of_speech(english, japanese, category), level, current_user_id(), now_text(), now_text()),
             )
             added_count += 1
         else:
@@ -2085,6 +2223,9 @@ def answer():
     if word is None:
         return redirect(url_for("quiz"))
 
+    streak = get_recent_correct_streak(current_user_id())
+    reaction = get_cat_reaction(correct, streak=streak)
+
     return render_template(
         "result.html",
         word=word,
@@ -2092,6 +2233,8 @@ def answer():
         is_correct=correct,
         mode=mode,
         scope=scope,
+        reaction=reaction,
+        streak=streak,
     )
 
 
@@ -2126,6 +2269,8 @@ def session_start():
         "mode": mode,
         "scope": scope,
         "answers": [],
+        "current_streak": 0,
+        "best_streak": 0,
     }
 
     return redirect(url_for("session_quiz"))
@@ -2175,6 +2320,11 @@ def session_answer():
 
     if correct:
         data["correct"] += 1
+        data["current_streak"] = data.get("current_streak", 0) + 1
+    else:
+        data["current_streak"] = 0
+
+    data["best_streak"] = max(data.get("best_streak", 0), data.get("current_streak", 0))
 
     data["answers"].append(
         {
@@ -2188,6 +2338,8 @@ def session_answer():
     data["index"] += 1
     session["quiz_session"] = data
 
+    reaction = get_cat_reaction(correct, streak=data.get("current_streak", 0))
+
     return render_template(
         "session_result.html",
         word=word,
@@ -2195,6 +2347,7 @@ def session_answer():
         is_correct=correct,
         data=data,
         is_finished=data["index"] >= data["total"],
+        reaction=reaction,
     )
 
 
@@ -2222,7 +2375,8 @@ def session_finish():
     test_session = conn.execute("SELECT * FROM test_sessions WHERE id = ?", (test_session_id,)).fetchone()
     conn.close()
 
-    return render_template("session_finish.html", data=data, accuracy=accuracy, test_session=test_session)
+    finish_reaction = get_cat_reaction(True, streak=data.get("best_streak", 0), finished=True, accuracy=accuracy)
+    return render_template("session_finish.html", data=data, accuracy=accuracy, test_session=test_session, finish_reaction=finish_reaction)
 
 
 @app.route("/session/reset")

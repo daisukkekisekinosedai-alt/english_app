@@ -2688,3 +2688,183 @@ textarea:focus {
         grid-template-columns: 1fr;
     }
 }
+
+
+/* =========================================================
+   v6 Cat Reaction Upgrade
+   ========================================================= */
+
+.cat-result-shell {
+    position: relative;
+    overflow: hidden;
+}
+
+.cat-reaction-panel {
+    position: relative;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.cat-reaction-panel img {
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.cat-reaction-sparkle img,
+.cat-reaction-confetti img,
+.cat-reaction-festival img {
+    animation: catHappyBounce 1.25s ease-in-out infinite alternate;
+}
+
+.cat-reaction-clap img {
+    animation: catClapBounce 0.75s ease-in-out infinite alternate;
+}
+
+.cat-reaction-sad img {
+    animation: catSadWobble 1.8s ease-in-out infinite;
+    filter: saturate(0.88);
+}
+
+.cat-reaction-festival {
+    box-shadow: 0 18px 42px rgba(255, 111, 174, 0.28);
+}
+
+.cat-reaction-confetti {
+    box-shadow: 0 14px 34px rgba(255, 143, 189, 0.22);
+}
+
+.reaction-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 5px 10px;
+    margin-bottom: 6px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ffeff7, #f4e8ff);
+    color: #92275d;
+    border: 1px solid #ffd1e5;
+    font-size: 0.76rem;
+    font-weight: 1000;
+    letter-spacing: 0.04em;
+}
+
+.reaction-mini {
+    display: inline-block;
+    margin-top: 6px;
+    color: #9b647d;
+    font-weight: 900;
+    font-size: 0.82rem;
+}
+
+.paw-clap {
+    position: absolute;
+    right: 18px;
+    top: 12px;
+    display: flex;
+    gap: 8px;
+    font-size: 1.55rem;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.paw-clap span:first-child {
+    animation: pawLeftClap 0.7s ease-in-out infinite;
+}
+
+.paw-clap span:last-child {
+    animation: pawRightClap 0.7s ease-in-out infinite;
+}
+
+.cat-home-reaction {
+    overflow: hidden;
+}
+
+.cat-home-reaction.cat-reaction-sparkle::after,
+.cat-home-reaction.cat-reaction-soft::after {
+    content: "✨ 🐾 ✨";
+    position: absolute;
+    right: 16px;
+    top: 14px;
+    opacity: 0.75;
+    animation: sparkleFloat 2.6s ease-in-out infinite alternate;
+}
+
+.finish-cat-panel {
+    align-items: center;
+}
+
+.finish-cat-panel > div {
+    display: grid;
+    gap: 4px;
+}
+
+.finish-cat-panel strong {
+    color: #92275d;
+    font-size: 1.05rem;
+}
+
+@keyframes catHappyBounce {
+    0% {
+        transform: translateY(0) rotate(-1deg) scale(1);
+    }
+    100% {
+        transform: translateY(-8px) rotate(1deg) scale(1.035);
+    }
+}
+
+@keyframes catClapBounce {
+    0% {
+        transform: translateY(0) scale(1);
+    }
+    100% {
+        transform: translateY(-5px) scale(1.025);
+    }
+}
+
+@keyframes catSadWobble {
+    0%, 100% {
+        transform: translateX(0) rotate(0deg);
+    }
+    35% {
+        transform: translateX(-3px) rotate(-1deg);
+    }
+    70% {
+        transform: translateX(3px) rotate(1deg);
+    }
+}
+
+@keyframes pawLeftClap {
+    0%, 100% {
+        transform: translateX(-6px) rotate(-18deg);
+    }
+    50% {
+        transform: translateX(3px) rotate(8deg);
+    }
+}
+
+@keyframes pawRightClap {
+    0%, 100% {
+        transform: translateX(6px) rotate(18deg);
+    }
+    50% {
+        transform: translateX(-3px) rotate(-8deg);
+    }
+}
+
+@keyframes sparkleFloat {
+    0% {
+        transform: translateY(0) rotate(-2deg);
+        opacity: 0.45;
+    }
+    100% {
+        transform: translateY(-8px) rotate(2deg);
+        opacity: 0.9;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cat-reaction-panel img,
+    .paw-clap span,
+    .cat-home-reaction::after,
+    .celebration-title {
+        animation: none !important;
+    }
+}

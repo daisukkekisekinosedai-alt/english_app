@@ -3,23 +3,32 @@
 {% block title %}結果 - English Pocket{% endblock %}
 
 {% block content %}
-<section class="result-card {% if is_correct %}correct{% else %}wrong{% endif %}">
+<section class="result-card {% if is_correct %}correct{% else %}wrong{% endif %} cat-result-shell">
+    {% if reaction.effect in ["confetti", "festival"] %}
+    <div class="celebration-effect" aria-hidden="true">
+        {% for n in range(24) %}
+            <span style="--i: {{ n }};">{% if n % 4 == 0 %}🎉{% elif n % 4 == 1 %}💖{% elif n % 4 == 2 %}⭐{% else %}🐾{% endif %}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     {% if is_correct %}
-        <p class="result-mark">正解！</p>
+        <p class="result-mark {% if reaction.effect in ['clap', 'confetti', 'festival'] %}celebration-title{% endif %}">正解！</p>
     {% else %}
         <p class="result-mark">不正解...</p>
     {% endif %}
 
-    {% set reaction_cat = cat_image('correct') if is_correct else cat_image('wrong') %}
-    <div class="cat-reaction-panel {% if is_correct %}cat-correct{% else %}cat-wrong{% endif %}">
-        <img src="{{ url_for('static', filename=reaction_cat) }}" alt="{% if is_correct %}正解を喜ぶ子猫{% else %}不正解で悲しそうな子猫{% endif %}">
+    <div class="cat-reaction-panel cat-reaction-{{ reaction.effect }} {% if is_correct %}cat-correct{% else %}cat-wrong{% endif %}">
+        {% if reaction.effect == "clap" %}
+            <div class="paw-clap" aria-hidden="true"><span>🐾</span><span>🐾</span></div>
+        {% endif %}
+        <img src="{{ url_for('static', filename=cat_image(reaction.cat_state)) }}" alt="{{ reaction.title }}">
         <div>
-            {% if is_correct %}
-                <strong>やった、正解にゃ。</strong>
-                <p>この調子で語彙力をもふもふ育てよう。</p>
-            {% else %}
-                <strong>惜しいにゃ…。</strong>
-                <p>でもミスった単語は伸びしろ。次で回収しよう。</p>
+            <span class="reaction-badge">{{ reaction.badge }}</span>
+            <strong>{{ reaction.title }}</strong>
+            <p>{{ reaction.message }}</p>
+            {% if is_correct and streak >= 2 %}
+                <small class="reaction-mini">現在 {{ streak }} 問連続正解中</small>
             {% endif %}
         </div>
     </div>
