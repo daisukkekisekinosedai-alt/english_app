@@ -612,6 +612,164 @@ def cat_image(state: str = "neutral") -> str:
     return CAT_STATE_MAP.get(key, CAT_STATE_MAP["milk"]).get(state, CAT_STATE_MAP["milk"]["neutral"])
 
 
+def progress_percent(value: int | float, target: int | float) -> int:
+    if target <= 0:
+        return 100
+    return max(0, min(100, int((value / target) * 100)))
+
+
+def get_cat_room_items(stats: dict) -> list[dict]:
+    """
+    DBを増やさず、既存の学習履歴から猫の部屋アイテム解放を判定します。
+    """
+    total_logs = int(stats.get("total_logs", 0) or 0)
+    correct_logs = int(stats.get("correct_logs", 0) or 0)
+    favorite_words = int(stats.get("favorite_words", 0) or 0)
+    accuracy = float(stats.get("accuracy", 0) or 0)
+
+    game = stats.get("gamification", {}).get("game", {})
+    streak = stats.get("gamification", {}).get("streak", {})
+    level = int(game.get("level", 1) or 1)
+    perfect_sessions = int(game.get("perfect_sessions", 0) or 0)
+    current_streak = int(streak.get("current", 0) or 0)
+    longest_streak = int(streak.get("longest", 0) or 0)
+
+    raw_items = [
+        {
+            "key": "cushion",
+            "name": "ふわふわクッション",
+            "emoji": "🛋️",
+            "condition": total_logs >= 10,
+            "progress": progress_percent(total_logs, 10),
+            "requirement": "10問回答で解放",
+            "message": "猫がくつろげる場所をゲット。",
+            "style": "left: 13%; bottom: 18%;",
+        },
+        {
+            "key": "yarn",
+            "name": "毛糸ボール",
+            "emoji": "🧶",
+            "condition": current_streak >= 3 or longest_streak >= 3,
+            "progress": progress_percent(max(current_streak, longest_streak), 3),
+            "requirement": "3日連続学習で解放",
+            "message": "続けるほど猫の遊び道具が増えます。",
+            "style": "right: 16%; bottom: 18%;",
+        },
+        {
+            "key": "crown",
+            "name": "満点の王冠",
+            "emoji": "👑",
+            "condition": perfect_sessions >= 1,
+            "progress": progress_percent(perfect_sessions, 1),
+            "requirement": "10問満点1回で解放",
+            "message": "満点を取った証。猫、完全に王様です。",
+            "style": "left: 50%; top: 18%;",
+        },
+        {
+            "key": "tower",
+            "name": "キャットタワー",
+            "emoji": "🗼",
+            "condition": total_logs >= 100,
+            "progress": progress_percent(total_logs, 100),
+            "requirement": "100問回答で解放",
+            "message": "学習量が増えると部屋も大きくなります。",
+            "style": "right: 7%; bottom: 34%;",
+        },
+        {
+            "key": "bookshelf",
+            "name": "英単語の本棚",
+            "emoji": "📚",
+            "condition": level >= 10,
+            "progress": progress_percent(level, 10),
+            "requirement": "Lv10で解放",
+            "message": "語彙の積み上げが見える本棚です。",
+            "style": "left: 7%; bottom: 38%;",
+        },
+        {
+            "key": "trophy",
+            "name": "努力のトロフィー",
+            "emoji": "🏆",
+            "condition": total_logs >= 500,
+            "progress": progress_percent(total_logs, 500),
+            "requirement": "500問回答で解放",
+            "message": "ここまで来たらかなり本物。",
+            "style": "right: 30%; top: 24%;",
+        },
+        {
+            "key": "fish",
+            "name": "お気に入りフィッシュ",
+            "emoji": "🐟",
+            "condition": favorite_words >= 5,
+            "progress": progress_percent(favorite_words, 5),
+            "requirement": "お気に入り5語で解放",
+            "message": "お気に入り単語を集めると猫のおやつも増えます。",
+            "style": "left: 29%; bottom: 12%;",
+        },
+        {
+            "key": "ribbon",
+            "name": "正答率リボン",
+            "emoji": "🎀",
+            "condition": accuracy >= 80 and total_logs >= 30,
+            "progress": min(progress_percent(accuracy, 80), progress_percent(total_logs, 30)),
+            "requirement": "30問以上回答かつ正答率80%以上で解放",
+            "message": "ただ解くだけじゃなく、ちゃんと正解している証。",
+            "style": "right: 42%; top: 12%;",
+        },
+        {
+            "key": "window",
+            "name": "連続学習の窓",
+            "emoji": "🌙",
+            "condition": longest_streak >= 7,
+            "progress": progress_percent(longest_streak, 7),
+            "requirement": "7日連続学習で解放",
+            "message": "毎日来る人だけが見られる夜景。",
+            "style": "left: 33%; top: 18%;",
+        },
+        {
+            "key": "plant",
+            "name": "語彙の観葉植物",
+            "emoji": "🌿",
+            "condition": correct_logs >= 100,
+            "progress": progress_percent(correct_logs, 100),
+            "requirement": "100問正解で解放",
+            "message": "正解が増えるほど、部屋も育ちます。",
+            "style": "left: 17%; top: 28%;",
+        },
+    ]
+
+    for item in raw_items:
+        item["unlocked"] = bool(item["condition"])
+
+    return raw_items
+
+
+def get_cat_room_summary(items: list[dict]) -> dict:
+    unlocked = [item for item in items if item["unlocked"]]
+    locked = [item for item in items if not item["unlocked"]]
+    next_item = sorted(locked, key=lambda item: item["progress"], reverse=True)[0] if locked else None
+
+    if len(unlocked) == len(items):
+        message = "全部そろったにゃ。ここはもう語彙王の猫部屋です。"
+    elif len(unlocked) >= 6:
+        message = "だいぶ部屋が育ってきたにゃ。あと少しで豪邸です。"
+    elif len(unlocked) >= 3:
+        message = "いい感じに家具が増えてきたにゃ。毎日の学習がちゃんと形になってます。"
+    elif len(unlocked) >= 1:
+        message = "最初の家具をゲット。ここから猫部屋を育てよう。"
+    else:
+        message = "まだ何もない部屋。まずは10問解いてクッションを置こう。"
+
+    return {
+        "unlocked_count": len(unlocked),
+        "total_count": len(items),
+        "locked_count": len(locked),
+        "next_item": next_item,
+        "message": message,
+        "completion": progress_percent(len(unlocked), len(items)),
+    }
+
+
+
 @app.context_processor
 def inject_current_user():
     user = get_current_user()
@@ -2629,6 +2787,17 @@ def share_session(test_session_id: int):
     if test_session is None:
         return redirect(url_for("dashboard"))
     return render_template("share_session.html", test_session=test_session)
+
+
+
+@app.route("/cat-room")
+@login_required
+def cat_room():
+    uid = require_user_id()
+    stats = get_stats(uid)
+    items = get_cat_room_items(stats)
+    room_summary = get_cat_room_summary(items)
+    return render_template("cat_room.html", stats=stats, items=items, room_summary=room_summary)
 
 
 @app.route("/badges")

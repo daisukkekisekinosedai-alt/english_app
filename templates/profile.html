@@ -182,6 +182,7 @@
     <div class="hero-actions">
         <a class="button secondary" href="{{ url_for('dashboard') }}">学習記録</a>
         <a class="button secondary" href="{{ url_for('review') }}">復習モード</a>
+        <a class="button secondary" href="{{ url_for('cat_room') }}">猫の部屋</a>
         {% if is_master %}<a class="button secondary" href="{{ url_for('admin_users') }}">master管理</a>{% endif %}
         <a class="button danger" href="{{ url_for('logout') }}">ログアウト</a>
     </div>

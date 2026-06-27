@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}猫の部屋 - English Pocket{% endblock %}
+
+{% block content %}
+<section class="cat-room-hero card">
+    <div class="cat-room-hero-text">
+        <p class="eyebrow">Cat room</p>
+        <h1>猫の部屋</h1>
+        <p class="lead small-lead">{{ room_summary.message }}</p>
+
+        <div class="cat-room-progress">
+            <div>
+                <strong>{{ room_summary.unlocked_count }} / {{ room_summary.total_count }}</strong>
+                <span>アイテム解放</span>
+            </div>
+            <div class="room-progress-bar">
+                <span style="width: {{ room_summary.completion }}%;"></span>
+            </div>
+        </div>
+
+        {% if room_summary.next_item %}
+            <p class="next-room-item">
+                次に近い家具：<strong>{{ room_summary.next_item.emoji }} {{ room_summary.next_item.name }}</strong>
+                <span>{{ room_summary.next_item.progress }}%</span>
+            </p>
+        {% else %}
+            <p class="next-room-item"><strong>全アイテム解放済み！</strong> 猫、豪邸に住んでます。</p>
+        {% endif %}
+    </div>
+
+    <img class="cat-room-hero-cat" src="{{ url_for('static', filename=cat_image('neutral')) }}" alt="猫の部屋の相棒ねこ">
+</section>
+
+<section class="cat-room-stage card">
+    <div class="room-wall">
+        <div class="room-window">☁️</div>
+        <div class="room-frame">TOEIC<br>ROOM</div>
+    </div>
+
+    <div class="room-floor"></div>
+
+    <div class="room-main-cat">
+        <img src="{{ url_for('static', filename=cat_image('neutral')) }}" alt="部屋でくつろぐ猫">
+        <span>にゃ</span>
+    </div>
+
+    {% for item in items %}
+        <div
+            class="room-item room-item-{{ item.key }} {% if not item.unlocked %}locked{% endif %}"
+            style="{{ item.style }}"
+            title="{{ item.name }}"
+        >
+            <span>{{ item.emoji }}</span>
+            {% if not item.unlocked %}
+                <small>🔒</small>
+            {% endif %}
+        </div>
+    {% endfor %}
+</section>
+
+<section class="room-stats-grid">
+    <article class="room-stat-card">
+        <span>回答数</span>
+        <strong>{{ stats.total_logs }}</strong>
+    </article>
+    <article class="room-stat-card">
+        <span>正解数</span>
+        <strong>{{ stats.correct_logs }}</strong>
+    </article>
+    <article class="room-stat-card">
+        <span>正答率</span>
+        <strong>{{ stats.accuracy }}%</strong>
+    </article>
+    <article class="room-stat-card">
+        <span>Lv</span>
+        <strong>{{ stats.gamification.game.level }}</strong>
+    </article>
+</section>
+
+<section class="card room-items-panel">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Collection</p>
+            <h2>家具コレクション</h2>
+        </div>
+        <span class="ranking-count">{{ room_summary.unlocked_count }}個解放</span>
+    </div>
+
+    <div class="room-item-list">
+        {% for item in items %}
+            <article class="room-item-card {% if item.unlocked %}unlocked{% else %}locked{% endif %}">
+                <div class="room-item-icon">{{ item.emoji }}</div>
+                <div class="room-item-detail">
+                    <div class="room-item-title">
+                        <strong>{{ item.name }}</strong>
+                        {% if item.unlocked %}
+                            <span class="tag">解放済み</span>
+                        {% else %}
+                            <span class="tag">未解放</span>
+                        {% endif %}
+                    </div>
+                    <p>{{ item.message }}</p>
+                    <small>{{ item.requirement }}</small>
+                    {% if not item.unlocked %}
+                        <div class="mini-progress">
+                            <span style="width: {{ item.progress }}%;"></span>
+                        </div>
+                    {% endif %}
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="card mini-card">
+    <div class="hero-actions">
+        <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='all', count=10) }}">10問解く</a>
+        <a class="button secondary" href="{{ url_for('review') }}">復習する</a>
+        <a class="button secondary" href="{{ url_for('badges') }}">バッジを見る</a>
+    </div>
+</section>
+{% endblock %}

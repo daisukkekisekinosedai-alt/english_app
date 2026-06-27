@@ -2868,3 +2868,410 @@ textarea:focus {
         animation: none !important;
     }
 }
+
+
+/* =========================================================
+   v7 Cat Room
+   ========================================================= */
+
+.cat-room-mini {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 14px;
+    background:
+        radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.95), transparent 9rem),
+        linear-gradient(135deg, #fff0f7, #f5e9ff);
+}
+
+.cat-room-mini h2 {
+    margin: 2px 0 4px;
+    color: #92275d;
+}
+
+.cat-room-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 210px;
+    gap: 18px;
+    align-items: center;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 86% 18%, rgba(255, 255, 255, 0.98), transparent 8rem),
+        linear-gradient(135deg, #fff0f7, #f4e8ff 55%, #ffe5f1);
+}
+
+.cat-room-hero h1 {
+    margin: 4px 0;
+    color: #92275d;
+    font-size: clamp(2rem, 7vw, 3.8rem);
+}
+
+.cat-room-hero-cat {
+    width: 210px;
+    max-height: 210px;
+    object-fit: contain;
+    filter: drop-shadow(0 18px 32px rgba(255, 111, 174, 0.24));
+    animation: catHappyBounce 1.8s ease-in-out infinite alternate;
+}
+
+.cat-room-progress {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+    max-width: 420px;
+}
+
+.cat-room-progress strong {
+    color: #92275d;
+    font-size: 1.4rem;
+}
+
+.cat-room-progress span {
+    color: #9b647d;
+    font-weight: 900;
+}
+
+.room-progress-bar,
+.mini-progress {
+    height: 12px;
+    border-radius: 999px;
+    background: #ffe0ed;
+    overflow: hidden;
+    border: 1px solid rgba(255, 143, 189, 0.35);
+}
+
+.room-progress-bar span,
+.mini-progress span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #ff6fae, #c084fc);
+}
+
+.next-room-item {
+    margin: 12px 0 0;
+    color: #7b405d;
+    font-weight: 900;
+}
+
+.next-room-item span {
+    display: inline-flex;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #fff;
+    color: #92275d;
+}
+
+.cat-room-stage {
+    position: relative;
+    min-height: 430px;
+    overflow: hidden;
+    margin-top: 16px;
+    padding: 0;
+    background:
+        linear-gradient(180deg, #fff7fb 0 58%, #ffe1ef 58% 100%);
+    border-color: rgba(255, 143, 189, 0.7);
+}
+
+.room-wall {
+    position: absolute;
+    inset: 0 0 42%;
+    background:
+        radial-gradient(circle at 20% 30%, rgba(255, 209, 229, 0.75), transparent 7rem),
+        radial-gradient(circle at 86% 26%, rgba(216, 180, 254, 0.55), transparent 8rem),
+        linear-gradient(135deg, #fff7fb, #f7ecff);
+}
+
+.room-floor {
+    position: absolute;
+    left: -10%;
+    right: -10%;
+    bottom: -10%;
+    height: 48%;
+    background:
+        repeating-linear-gradient(90deg, rgba(255, 143, 189, 0.12) 0 2px, transparent 2px 72px),
+        linear-gradient(180deg, #ffd7e8, #ffc1dc);
+    transform: perspective(520px) rotateX(18deg);
+    transform-origin: bottom;
+}
+
+.room-window {
+    position: absolute;
+    right: 10%;
+    top: 11%;
+    width: 95px;
+    height: 78px;
+    border-radius: 28px;
+    background: linear-gradient(135deg, #dff7ff, #fff);
+    border: 5px solid #fff;
+    box-shadow: 0 14px 30px rgba(255, 111, 174, 0.14);
+    display: grid;
+    place-items: center;
+    font-size: 1.6rem;
+}
+
+.room-frame {
+    position: absolute;
+    left: 9%;
+    top: 12%;
+    width: 98px;
+    height: 78px;
+    border-radius: 22px;
+    background: #fff;
+    border: 4px solid #ffd1e5;
+    color: #92275d;
+    font-weight: 1000;
+    text-align: center;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 14px 30px rgba(255, 111, 174, 0.14);
+    font-size: 0.9rem;
+    line-height: 1.2;
+}
+
+.room-main-cat {
+    position: absolute;
+    left: 50%;
+    bottom: 16%;
+    transform: translateX(-50%);
+    display: grid;
+    place-items: center;
+    z-index: 4;
+}
+
+.room-main-cat img {
+    width: min(280px, 55vw);
+    max-height: 280px;
+    object-fit: contain;
+    filter: drop-shadow(0 20px 34px rgba(146, 39, 93, 0.18));
+}
+
+.room-main-cat span {
+    position: absolute;
+    right: 2%;
+    top: 12%;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: #fff;
+    color: #92275d;
+    border: 1px solid #ffd1e5;
+    font-weight: 1000;
+    transform: rotate(8deg);
+}
+
+.room-item {
+    position: absolute;
+    z-index: 3;
+    font-size: clamp(2rem, 7vw, 4rem);
+    filter: drop-shadow(0 10px 16px rgba(146, 39, 93, 0.16));
+    transform: translate(-50%, -50%);
+    animation: roomItemFloat 2.8s ease-in-out infinite alternate;
+}
+
+.room-item span {
+    display: inline-block;
+}
+
+.room-item small {
+    position: absolute;
+    right: -12px;
+    top: -8px;
+    font-size: 0.9rem;
+    background: #fff;
+    border-radius: 999px;
+    padding: 2px 5px;
+    border: 1px solid #ffd1e5;
+}
+
+.room-item.locked {
+    opacity: 0.22;
+    filter: grayscale(1) drop-shadow(0 8px 12px rgba(0,0,0,0.08));
+    animation: none;
+}
+
+.room-item-crown {
+    animation: crownGlow 1.6s ease-in-out infinite alternate;
+}
+
+.room-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 14px 0;
+}
+
+.room-stat-card {
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid #ffd1e5;
+    border-radius: 22px;
+    padding: 14px;
+    box-shadow: 0 12px 24px rgba(255, 111, 174, 0.10);
+}
+
+.room-stat-card span {
+    display: block;
+    color: #9b647d;
+    font-weight: 900;
+    font-size: 0.8rem;
+}
+
+.room-stat-card strong {
+    color: #92275d;
+    font-size: 1.4rem;
+}
+
+.room-items-panel {
+    margin-top: 14px;
+}
+
+.room-item-list {
+    display: grid;
+    gap: 10px;
+}
+
+.room-item-card {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+    border-radius: 22px;
+    border: 1px solid #ffd1e5;
+    background: #fffafd;
+}
+
+.room-item-card.locked {
+    background: #fff7fb;
+}
+
+.room-item-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #fff0f7, #f2e8ff);
+    font-size: 1.8rem;
+}
+
+.room-item-card.locked .room-item-icon {
+    filter: grayscale(1);
+    opacity: 0.55;
+}
+
+.room-item-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.room-item-title strong {
+    color: #4a2437;
+}
+
+.room-item-detail p {
+    margin: 4px 0;
+    color: #7b405d;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.room-item-detail small {
+    color: #9b647d;
+    font-weight: 900;
+}
+
+.mini-progress {
+    height: 8px;
+    margin-top: 8px;
+}
+
+@keyframes roomItemFloat {
+    0% {
+        transform: translate(-50%, -50%) translateY(0) rotate(-2deg);
+    }
+    100% {
+        transform: translate(-50%, -50%) translateY(-8px) rotate(2deg);
+    }
+}
+
+@keyframes crownGlow {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        filter: drop-shadow(0 8px 12px rgba(146, 39, 93, 0.16));
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.08);
+        filter: drop-shadow(0 0 18px rgba(255, 215, 0, 0.55));
+    }
+}
+
+@media (max-width: 720px) {
+    .cat-room-hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .cat-room-hero-cat {
+        margin: 0 auto;
+        width: 180px;
+    }
+
+    .cat-room-progress {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .room-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cat-room-stage {
+        min-height: 390px;
+    }
+
+    .room-window {
+        right: 7%;
+        width: 78px;
+        height: 62px;
+    }
+
+    .room-frame {
+        left: 7%;
+        width: 82px;
+        height: 64px;
+        font-size: 0.78rem;
+    }
+}
+
+@media (max-width: 560px) {
+    .cat-room-mini {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .room-item-title {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .room-main-cat img {
+        width: min(240px, 62vw);
+    }
+
+    .room-item {
+        font-size: clamp(1.7rem, 8vw, 3rem);
+    }
+
+    .room-item-card {
+        grid-template-columns: 48px minmax(0, 1fr);
+    }
+
+    .room-item-icon {
+        width: 48px;
+        height: 48px;
+    }
+}

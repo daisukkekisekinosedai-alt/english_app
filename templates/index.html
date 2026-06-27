@@ -20,6 +20,15 @@
     </div>
 </section>
 
+
+<section class="card cat-room-mini">
+    <div>
+        <p class="eyebrow">Cat room</p>
+        <h2>学習すると猫の部屋が育つにゃ</h2>
+        <p class="muted">10問回答、連続学習、満点などで家具や飾りが増えます。</p>
+    </div>
+    <a class="button primary" href="{{ url_for('cat_room') }}">猫の部屋へ</a>
+</section>
 <section class="cat-mood-strip card cat-home-reaction cat-reaction-{{ home_cat_message.effect }}">
     <img src="{{ url_for('static', filename=cat_image('neutral')) }}" alt="今日の相棒ねこ">
     <div>
