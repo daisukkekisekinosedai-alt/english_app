@@ -2,45 +2,60 @@
 {% block title %}猫の部屋 - にゃんにゃんイングリッシュ{% endblock %}
 
 {% block content %}
-<section class="cat-room-hero card">
+<section class="cat-room-hero card deluxe-room-hero">
     <div class="cat-room-hero-text">
-        <p class="eyebrow">Cat room</p>
+        <p class="eyebrow">Nyan room deluxe</p>
         <h1>猫の部屋</h1>
-        <p class="lead small-lead">{{ room_summary.message }}</p>
+        <p class="lead small-lead">{{ room_summary.message }} {{ closet_summary.message }}</p>
 
-        <div class="cat-room-progress">
+        <div class="cat-room-progress deluxe-progress-grid">
             <div>
                 <strong>{{ room_summary.unlocked_count }} / {{ room_summary.total_count }}</strong>
-                <span>アイテム解放</span>
+                <span>家具解放</span>
             </div>
-            <div class="room-progress-bar">
-                <span style="width: {{ room_summary.completion }}%;"></span>
+            <div>
+                <strong>{{ closet_summary.unlocked_count }} / {{ closet_summary.total_count }}</strong>
+                <span>着せ替え解放</span>
+            </div>
+            <div>
+                <strong>{{ closet_summary.equipped_count }}</strong>
+                <span>現在のコーデ</span>
             </div>
         </div>
 
-        {% if room_summary.next_item %}
+        <div class="double-progress-block">
+            <div>
+                <div class="room-progress-bar"><span style="width: {{ room_summary.completion }}%;"></span></div>
+                <small>部屋の完成度 {{ room_summary.completion }}%</small>
+            </div>
+            <div>
+                <div class="room-progress-bar pink"><span style="width: {{ closet_summary.completion }}%;"></span></div>
+                <small>クローゼット完成度 {{ closet_summary.completion }}%</small>
+            </div>
+        </div>
+
+        {% if closet_summary.next_item %}
             <p class="next-room-item">
-                次に近い家具：<strong>{{ room_summary.next_item.emoji }} {{ room_summary.next_item.name }}</strong>
-                <span>{{ room_summary.next_item.progress }}%</span>
+                次に狙える着せ替え：<strong>{{ closet_summary.next_item.emoji }} {{ closet_summary.next_item.name }}</strong>
+                <span>{{ closet_summary.next_item.progress }}%</span>
             </p>
-        {% else %}
-            <p class="next-room-item"><strong>全アイテム解放済み！</strong> 猫、豪邸に住んでます。</p>
         {% endif %}
     </div>
 
-    <img class="cat-room-hero-cat" src="{{ url_for('static', filename=cat_image('neutral')) }}" alt="猫の部屋の相棒ねこ">
+    {% with image_src=url_for('static', filename=cat_image('neutral')), alt_text='猫の部屋の相棒ねこ', shell_class='cat-room-hero-shell', img_class='cat-room-hero-cat' %}{% include "_cat_avatar.html" %}{% endwith %}
 </section>
 
-<section class="cat-room-stage card">
+<section class="cat-room-stage card deluxe-room-stage">
     <div class="room-wall">
         <div class="room-window">☁️</div>
-        <div class="room-frame">TOEIC<br>ROOM</div>
+        <div class="room-frame">NYAN<br>ROOM</div>
+        <div class="room-lamp">💡</div>
     </div>
 
     <div class="room-floor"></div>
 
-    <div class="room-main-cat">
-        <img src="{{ url_for('static', filename=cat_image('neutral')) }}" alt="部屋でくつろぐ猫">
+    <div class="room-main-cat deluxe-main-cat">
+        {% with image_src=url_for('static', filename=cat_image('neutral')), alt_text='部屋でくつろぐ猫', shell_class='room-main-cat-shell' %}{% include "_cat_avatar.html" %}{% endwith %}
         <span>にゃ</span>
     </div>
 
@@ -59,22 +74,43 @@
 </section>
 
 <section class="room-stats-grid">
-    <article class="room-stat-card">
-        <span>回答数</span>
-        <strong>{{ stats.total_logs }}</strong>
-    </article>
-    <article class="room-stat-card">
-        <span>正解数</span>
-        <strong>{{ stats.correct_logs }}</strong>
-    </article>
-    <article class="room-stat-card">
-        <span>正答率</span>
-        <strong>{{ stats.accuracy }}%</strong>
-    </article>
-    <article class="room-stat-card">
-        <span>Lv</span>
-        <strong>{{ stats.gamification.game.level }}</strong>
-    </article>
+    <article class="room-stat-card"><span>回答数</span><strong>{{ stats.total_logs }}</strong></article>
+    <article class="room-stat-card"><span>正解数</span><strong>{{ stats.correct_logs }}</strong></article>
+    <article class="room-stat-card"><span>正答率</span><strong>{{ stats.accuracy }}%</strong></article>
+    <article class="room-stat-card"><span>Lv</span><strong>{{ stats.gamification.game.level }}</strong></article>
+</section>
+
+<section class="card closet-summary-panel">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Nyan closet</p>
+            <h2>今のコーデ</h2>
+        </div>
+        <span class="ranking-count">{{ closet_summary.equipped_count }} / 4 装備中</span>
+    </div>
+
+    <div class="current-outfit-grid">
+        {% for slot_key, slot_label in closet_slot_labels.items() %}
+            {% set equipped = (equipped_items | selectattr('slot', 'equalto', slot_key) | list | first) %}
+            <article class="outfit-slot-card {% if equipped %}equipped{% else %}empty{% endif %}">
+                <div>
+                    <p class="eyebrow">{{ slot_label }}</p>
+                    {% if equipped %}
+                        <h3>{{ equipped.emoji }} {{ equipped.name }}</h3>
+                        <p>{{ equipped.description }}</p>
+                    {% else %}
+                        <h3>まだ未装備</h3>
+                        <p>クローゼットから好きなアイテムを選べます。</p>
+                    {% endif %}
+                </div>
+                {% if equipped %}
+                    <form method="post" action="{{ url_for('unequip_cat_item_route', slot=slot_key) }}">
+                        <button class="button secondary small" type="submit">はずす</button>
+                    </form>
+                {% endif %}
+            </article>
+        {% endfor %}
+    </div>
 </section>
 
 <section class="card room-items-panel">
@@ -93,30 +129,66 @@
                 <div class="room-item-detail">
                     <div class="room-item-title">
                         <strong>{{ item.name }}</strong>
-                        {% if item.unlocked %}
-                            <span class="tag">解放済み</span>
-                        {% else %}
-                            <span class="tag">未解放</span>
-                        {% endif %}
+                        <span class="tag">{% if item.unlocked %}解放済み{% else %}未解放{% endif %}</span>
                     </div>
                     <p>{{ item.message }}</p>
-                    <small>{{ item.requirement }}</small>
-                    {% if not item.unlocked %}
-                        <div class="mini-progress">
-                            <span style="width: {{ item.progress }}%;"></span>
-                        </div>
-                    {% endif %}
+                    <div class="room-item-meta">
+                        <small>{{ item.requirement }}</small>
+                        <span>{{ item.progress }}%</span>
+                    </div>
+                    <div class="mini-progress"><span style="width: {{ item.progress }}%;"></span></div>
                 </div>
             </article>
         {% endfor %}
     </div>
 </section>
 
-<section class="card mini-card">
-    <div class="hero-actions">
-        <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='all', count=10) }}">10問解く</a>
-        <a class="button secondary" href="{{ url_for('review') }}">復習する</a>
-        <a class="button secondary" href="{{ url_for('badges') }}">バッジを見る</a>
+<section class="card closet-panel">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Dress up</p>
+            <h2>にゃんクローゼット</h2>
+            <p class="muted">学習実績で解放されたアイテムを、今すぐ相棒に着せられます。</p>
+        </div>
+        <span class="ranking-count">{{ closet_summary.unlocked_count }}種解放</span>
+    </div>
+
+    <div class="closet-grid">
+        {% for item in closet_items %}
+            <article class="closet-item-card theme-{{ item.theme }} {% if item.equipped %}equipped{% elif item.unlocked %}unlocked{% else %}locked{% endif %}">
+                <div class="closet-item-head">
+                    <div class="closet-item-emoji">{{ item.emoji }}</div>
+                    <div>
+                        <p class="eyebrow">{{ item.slot_label }}</p>
+                        <h3>{{ item.name }}</h3>
+                    </div>
+                    {% if item.equipped %}
+                        <span class="tag shine">装備中</span>
+                    {% elif item.unlocked %}
+                        <span class="tag">解放済み</span>
+                    {% else %}
+                        <span class="tag lock">未解放</span>
+                    {% endif %}
+                </div>
+                <p class="closet-item-text">{{ item.description }}</p>
+                <p class="closet-req">解放条件: {{ item.requirement_label }}</p>
+                <div class="mini-progress"><span style="width: {{ item.progress }}%;"></span></div>
+                <div class="room-item-meta"><small>{{ item.progress_current }} / {{ item.progress_target }}</small><span>{{ item.progress }}%</span></div>
+                <div class="closet-actions">
+                    {% if item.equipped %}
+                        <form method="post" action="{{ url_for('unequip_cat_item_route', slot=item.slot) }}">
+                            <button class="button secondary small" type="submit">はずす</button>
+                        </form>
+                    {% elif item.unlocked %}
+                        <form method="post" action="{{ url_for('equip_cat_item_route', item_key=item.key) }}">
+                            <button class="button primary small" type="submit">着せる</button>
+                        </form>
+                    {% else %}
+                        <button class="button ghost small" type="button" disabled>まだ解放できない</button>
+                    {% endif %}
+                </div>
+            </article>
+        {% endfor %}
     </div>
 </section>
 {% endblock %}

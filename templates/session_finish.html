@@ -23,7 +23,7 @@
     <p class="lead">正答率 {{ accuracy }}%</p>
 
     <div class="finish-cat-panel cat-reaction-{{ finish_reaction.effect }}">
-        <img src="{{ url_for('static', filename=cat_image(finish_reaction.cat_state)) }}" alt="{{ finish_reaction.title }}">
+        {% with image_src=url_for('static', filename=cat_image(finish_reaction.cat_state)), alt_text=finish_reaction.title, shell_class='finish-cat-shell' %}{% include "_cat_avatar.html" %}{% endwith %}
         <div>
             <span class="reaction-badge">{{ finish_reaction.badge }}</span>
             <strong>{{ finish_reaction.title }}</strong>

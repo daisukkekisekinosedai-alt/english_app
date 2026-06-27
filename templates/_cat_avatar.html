@@ -1,0 +1,8 @@
+<div class="cat-avatar-shell {{ shell_class|default('') }}">
+    <img class="cat-avatar-base {{ img_class|default('') }}" src="{{ image_src }}" alt="{{ alt_text|default('cat') }}">
+    {% for item in equipped_cat_items %}
+        <span class="cat-accessory accessory-slot-{{ item.slot }} accessory-theme-{{ item.theme }}">
+            {{ item.emoji }}
+        </span>
+    {% endfor %}
+</div>
