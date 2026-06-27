@@ -3275,3 +3275,22 @@ textarea:focus {
         height: 48px;
     }
 }
+
+
+/* =========================================================
+   v8 More Cat Types
+   ========================================================= */
+
+.cat-select-card img {
+    transform-origin: center bottom;
+}
+
+.cat-select-card:hover img {
+    transform: translateY(-4px) scale(1.04);
+    transition: transform 0.2s ease;
+}
+
+.cat-select-grid {
+    grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+}
+
