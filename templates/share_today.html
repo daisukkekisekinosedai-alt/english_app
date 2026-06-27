@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}今日の結果を共有 - English Pocket{% endblock %}
+{% block content %}
+<section class="card">
+    <p class="eyebrow">Share</p>
+    <h1>今日の頑張りをシェア</h1>
+    <section class="stats-grid">
+        <div class="stat-card"><span class="stat-label">回答数</span><strong>{{ total_answers }}</strong></div>
+        <div class="stat-card"><span class="stat-label">正解数</span><strong>{{ total_correct }}</strong></div>
+        <div class="stat-card"><span class="stat-label">正答率</span><strong>{{ accuracy }}%</strong></div>
+    </section>
+    <div class="share-box">
+        <h2>そのまま投稿できるテキスト</h2>
+        <textarea id="share-text" readonly rows="13">{{ share_text }}</textarea>
+        <div class="hero-actions">
+            <a class="button secondary" href="{{ url_for('share_card') }}">共有カードを見る</a>
+        </div>
+        <button class="button primary copy-button" type="button" data-copy-target="share-text">コピー</button>
+    </div>
+</section>
+
+<section class="card">
+    <h2>今日のテスト</h2>
+    {% if summary.tests %}
+        <div class="log-list">
+            {% for test in summary.tests %}
+                <div class="log-row">
+                    <div>
+                        <strong>{{ test["mode"] }} / {{ test["scope"] }}</strong>
+                        <p>{{ test["correct_count"] }} / {{ test["total_count"] }} 正解・{{ test["accuracy"] }}%</p>
+                    </div>
+                    <a class="button secondary small" href="{{ url_for('share_session', test_session_id=test['id']) }}">詳細</a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">今日はまだ10問テストを完了していません。1問だけでもやると共有文が育ちます。</p>
+    {% endif %}
+</section>
+{% endblock %}

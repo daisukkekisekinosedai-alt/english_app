@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}English Pocket{% endblock %}</title>
+    <meta name="theme-color" content="#ff8fbd">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="cute-bg-decor" aria-hidden="true">
+        <span class="paw paw-1">🐾</span>
+        <span class="paw paw-2">🐾</span>
+        <span class="paw paw-3">🐾</span>
+        <span class="cat-float cat-1">🐱</span>
+        <span class="cat-float cat-2">🎀</span>
+    </div>
+    <header class="app-header">
+        <div class="header-inner">
+            <a class="brand" href="{{ url_for('index') if current_user else url_for('login') }}">
+                <span class="brand-icon">🐱</span>
+                <span>English Pocket <small class="brand-sub">meow</small></span>
+            </a>
+            {% if current_user %}
+                <a class="user-chip" href="{{ url_for('profile') }}">
+                    {% if current_user["icon_file"] %}
+                        <img src="{{ url_for('static', filename=current_user['icon_file']) }}" alt="icon">
+                    {% else %}
+                        <span>{{ current_user["display_name"][:1] }}</span>
+                    {% endif %}
+                    <strong>{{ current_user["display_name"] }}</strong>
+                </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% if current_user %}
+    <nav class="bottom-nav">
+        <a href="{{ url_for('index') }}">🏠<span>ホーム</span></a>
+        <a href="{{ url_for('session_start', mode='choice', scope='all', count=10) }}">📝<span>10問</span></a>
+        <a href="{{ url_for('rankings') }}">🏆<span>順位</span></a>
+        <a href="{{ url_for('share_today') }}">💌<span>共有</span></a>
+        <a href="{{ url_for('profile') }}">🐾<span>自分</span></a>
+    </nav>
+    {% endif %}
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

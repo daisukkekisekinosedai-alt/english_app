@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}苦手単語 - English Pocket{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p class="eyebrow">Weak words</p>
+    <h1>苦手単語</h1>
+    <p class="lead small-lead">間違えた回数が多い単語を表示します。</p>
+
+    <div class="hero-actions">
+        <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='weak', count=10) }}">苦手単語10問</a>
+        <a class="button secondary" href="{{ url_for('quiz', mode='choice', scope='weak') }}">1問だけ</a>
+    </div>
+
+    {% if weak_words %}
+        <div class="word-list top-space">
+            {% for word in weak_words %}
+                <article class="word-card compact">
+                    <div>
+                        <h2>{{ word["english"] }}</h2>
+                        <p class="meaning">{{ word["japanese"] }}</p>
+                        <div class="tag-list small-tags">
+                            <span class="tag">{{ word["category"] }}</span>
+                            <span class="tag">Lv.{{ word["level"] }}</span>
+                        </div>
+                        <p class="muted">
+                            回答 {{ word["total_count"] }}回 /
+                            ミス {{ word["incorrect_count"] }}回 /
+                            正答率 {{ word["accuracy"] }}%
+                        </p>
+                    </div>
+                    <button class="speak-button" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}">🔊</button>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-card soft">
+            <h2>苦手単語はまだありません</h2>
+            <p>何問か回答すると、ここに表示されます。</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

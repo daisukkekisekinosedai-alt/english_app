@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}リスニング - English Pocket{% endblock %}
+
+{% block content %}
+<section class="quiz-card listening-card">
+    <p class="eyebrow">Listening quiz</p>
+    <h1>音声を聞いて<br>意味を答える</h1>
+
+    <div class="listen-panel">
+        <p class="lead small-lead">英単語は最初は隠しています。音声を聞いて、日本語の意味を入力してください。</p>
+
+        {% if word["audio_file"] %}
+            <p class="muted">保存済み音声</p>
+            <audio controls autoplay preload="auto" src="{{ url_for('static', filename=word['audio_file']) }}"></audio>
+        {% else %}
+            <div class="listen-actions">
+                <button class="button primary large-audio" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.9">🔊 再生</button>
+                <button class="button secondary large-audio" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.6">🐢 ゆっくり</button>
+            </div>
+            <form method="POST" action="{{ url_for('generate_word_audio', word_id=word['id']) }}">
+                <input type="hidden" name="target" value="word">
+                <button class="button ghost small" type="submit" name="prefer" value="gtts">mp3を作成</button>
+            </form>
+        {% endif %}
+
+        <details class="hint-box">
+            <summary>英単語を見る</summary>
+            <div class="question-word small-word">{{ word["english"] }}</div>
+        </details>
+    </div>
+
+    <div class="tag-list center-tags">
+        <span class="tag">{{ word["category"] }}</span>
+        <span class="tag">Lv.{{ word["level"] }}</span>
+    </div>
+
+    <form method="POST" action="{{ url_for('answer') }}" class="quiz-form">
+        <input type="hidden" name="word_id" value="{{ word['id'] }}">
+        <input type="hidden" name="mode" value="listen">
+        <input type="hidden" name="scope" value="{{ scope }}">
+
+        <label class="input-answer-label">
+            日本語の意味
+            <input type="text" name="answer" required autofocus placeholder="聞こえた単語の意味を入力">
+        </label>
+
+        <button class="button primary wide" type="submit">回答する</button>
+    </form>
+
+    {% if word["example"] %}
+        <div class="example-listen">
+            <p class="muted">回答後に例文も確認できます。先に聞きたい場合はこちら。</p>
+            <button class="button ghost small" type="button" data-speak="{{ word['example'] }}" data-rate="0.9">例文を聞く</button>
+        </div>
+    {% endif %}
+
+    <div class="mode-switch">
+        <a href="{{ url_for('listen_quiz', scope='all') }}">全単語</a>
+        <a href="{{ url_for('listen_quiz', scope='weak') }}">苦手</a>
+        <a href="{{ url_for('listen_quiz', scope='favorite') }}">お気に入り</a>
+        <a href="{{ url_for('session_start', mode='listen', scope=scope, count=10) }}">10問連続</a>
+    </div>
+</section>
+{% endblock %}

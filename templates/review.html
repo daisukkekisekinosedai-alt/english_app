@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}復習モード - English Pocket{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p class="eyebrow">Review</p>
+    <h1>復習モード</h1>
+    <p class="lead small-lead">苦手・今日ミスった単語・何度もミスる単語・しばらく触っていない単語をまとめて復習できます。</p>
+</section>
+
+<section class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-label">今日ミス</span>
+        <strong>{{ review_stats.today_wrong }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">2回以上ミス</span>
+        <strong>{{ review_stats.repeat_wrong }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">7日未復習</span>
+        <strong>{{ review_stats.stale }}</strong>
+    </div>
+</section>
+
+<section class="card">
+    <h2>復習メニュー</h2>
+    <div class="action-list">
+        <a href="{{ url_for('session_start', mode='choice', scope='weak', count=10) }}">苦手単語10問</a>
+        <a href="{{ url_for('session_start', mode='choice', scope='today_wrong', count=10) }}">今日ミスった単語10問</a>
+        <a href="{{ url_for('session_start', mode='choice', scope='repeat_wrong', count=10) }}">何度もミスる単語10問</a>
+        <a href="{{ url_for('session_start', mode='choice', scope='stale', count=10) }}">1週間触ってない単語10問</a>
+        <a href="{{ url_for('session_start', mode='listen', scope='weak', count=10) }}">苦手リスニング10問</a>
+    </div>
+</section>
+{% endblock %}

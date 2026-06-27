@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if mode == "add" %}単語追加{% else %}単語編集{% endif %} - English Pocket
+{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p class="eyebrow">{% if mode == "add" %}Add word{% else %}Edit word{% endif %}</p>
+    <h1>{% if mode == "add" %}単語を追加{% else %}単語を編集{% endif %}</h1>
+
+    {% if request.args.get("duplicate") %}
+        <div class="warning-box duplicate-message">
+            <strong>同じ英単語が既にあります</strong>
+            <p>重複登録はせず、既存の単語編集画面に移動しました。意味を追加したい場合は、日本語欄にカンマ区切りで追記してください。</p>
+        </div>
+    {% endif %}
+
+    <form method="POST" class="form">
+        <label>
+            英単語
+            <input type="text" name="english" required value="{{ word['english'] if word else '' }}" placeholder="apple">
+        </label>
+
+        <label>
+            日本語
+            <input type="text" name="japanese" required value="{{ word['japanese'] if word else '' }}" placeholder="りんご">
+            <span class="hint">複数正解は「りんご, 林檎」のようにカンマ区切りで書けます。</span>
+        </label>
+
+        <label>
+            カテゴリ
+            <input type="text" name="category" list="category-list" value="{{ word['category'] if word else '' }}" placeholder="仕事 / IT / 日常 / 学習">
+            <datalist id="category-list">
+                {% for category in categories %}
+                    <option value="{{ category }}">
+                {% endfor %}
+            </datalist>
+        </label>
+
+        <label>
+            レベル
+            <select name="level">
+                {% for n in range(1, 6) %}
+                    <option value="{{ n }}" {% if word and word["level"] == n %}selected{% endif %}>Lv.{{ n }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>
+            例文
+            <textarea name="example" rows="3" placeholder="I ate an apple.">{{ word['example'] if word else '' }}</textarea>
+        </label>
+
+        <label>
+            メモ
+            <textarea name="memo" rows="3" placeholder="覚え方など">{{ word['memo'] if word else '' }}</textarea>
+        </label>
+
+        <label>
+            読み上げ用テキスト
+            <input type="text" name="audio_text" value="{{ word['audio_text'] if word else '' }}" placeholder="例：This is uh pen.">
+            <span class="hint">表示は英単語のまま、音声だけこちらを読ませます。空欄なら英単語をそのまま読みます。変更後は音声ファイルを再生成してください。</span>
+        </label>
+
+        <label class="checkbox-line">
+            <input type="checkbox" name="favorite" {% if word and word["favorite"] %}checked{% endif %}>
+            お気に入りにする
+        </label>
+
+        <div class="form-actions">
+            <button class="button primary" type="submit">保存</button>
+            <a class="button secondary" href="{{ url_for('words') }}">戻る</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

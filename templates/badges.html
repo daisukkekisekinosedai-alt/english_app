@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}称号・バッジ - English Pocket{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p class="eyebrow">Badges</p>
+    <h1>称号・バッジ</h1>
+    <p class="lead small-lead">回答数・満点・連続学習・リスニングなどで称号が解放されます。</p>
+</section>
+
+<section class="card game-card">
+    <div class="game-head">
+        <div>
+            <p class="eyebrow">Current Title</p>
+            <h2>Lv.{{ stats.gamification.game.level }} {{ stats.gamification.game.title }}</h2>
+            <p class="muted">{{ stats.gamification.game.exp }} EXP</p>
+        </div>
+        <div class="streak-badge">🔥 {{ stats.gamification.streak.current }}日連続</div>
+    </div>
+    <div class="progress-bar">
+        <span style="width: {{ stats.gamification.game.progress_pct }}%"></span>
+    </div>
+</section>
+
+<section class="badge-grid">
+    {% for badge in badges %}
+        <article class="badge-card {% if badge.unlocked %}unlocked{% else %}locked{% endif %}">
+            <div class="badge-icon">{{ badge.icon }}</div>
+            <h2>{{ badge.name }}</h2>
+            <p>{{ badge.description }}</p>
+            {% if badge.unlocked %}
+                <span class="badge ok">解放済み</span>
+            {% else %}
+                <span class="badge ng">未解放</span>
+            {% endif %}
+        </article>
+    {% endfor %}
+</section>
+{% endblock %}

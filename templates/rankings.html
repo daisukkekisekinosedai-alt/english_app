@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}ランキング - English Pocket{% endblock %}
+
+{% block content %}
+<section class="ranking-hero card">
+    <div class="ranking-hero-text">
+        <p class="eyebrow">Ranking</p>
+        <h1>みんなのランキング</h1>
+        <p class="lead small-lead">正解数・正答率・レベル・ストリークを見やすくまとめました。</p>
+    </div>
+
+    <img class="ranking-hero-cat" src="{{ url_for('static', filename='images/cats/cat-play.png') }}" alt="ランキングを応援する子猫">
+</section>
+
+<section class="ranking-tabs card">
+    <a class="{% if period == 'all' %}active{% endif %}" href="{{ url_for('rankings', period='all') }}">
+        <span>🏆</span>
+        <strong>全期間</strong>
+    </a>
+    <a class="{% if period == 'week' %}active{% endif %}" href="{{ url_for('rankings', period='week') }}">
+        <span>📅</span>
+        <strong>直近7日</strong>
+    </a>
+    <a class="{% if period == 'today' %}active{% endif %}" href="{{ url_for('rankings', period='today') }}">
+        <span>🌸</span>
+        <strong>今日</strong>
+    </a>
+</section>
+
+{% if rankings %}
+    <section class="podium-grid">
+        {% for row in rankings[:3] %}
+            <article class="podium-card rank-{{ loop.index }}">
+                <div class="podium-rank">
+                    {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% else %}🥉{% endif %}
+                </div>
+
+                <div class="podium-user">
+                    {% if row["icon_file"] %}
+                        <img src="{{ url_for('static', filename=row['icon_file']) }}" alt="icon">
+                    {% else %}
+                        <span>{{ row["display_name"][:1] }}</span>
+                    {% endif %}
+                </div>
+
+                <h2>{{ row["display_name"] }}</h2>
+                <p class="rank-title">Lv.{{ row["level"] }} {{ row["title"] }}</p>
+
+                <div class="podium-score">
+                    <strong>{{ row["correct_answers"] }}</strong>
+                    <span>正解</span>
+                </div>
+
+                <div class="rank-mini-metrics">
+                    <span>{{ row["total_answers"] }}問</span>
+                    <span>{{ row["accuracy"] }}%</span>
+                    <span>🔥{{ row["streak"] }}日</span>
+                </div>
+            </article>
+        {% endfor %}
+    </section>
+
+    <section class="card ranking-list-card">
+        <div class="section-title-row">
+            <div>
+                <p class="eyebrow">List</p>
+                <h2>ランキング一覧</h2>
+            </div>
+            <span class="ranking-count">{{ rankings|length }}人</span>
+        </div>
+
+        <div class="ranking-list">
+            {% for row in rankings %}
+                <article class="ranking-row {% if loop.index <= 3 %}top-rank{% endif %}">
+                    <div class="ranking-position">
+                        {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+                    </div>
+
+                    <div class="ranking-avatar">
+                        {% if row["icon_file"] %}
+                            <img src="{{ url_for('static', filename=row['icon_file']) }}" alt="icon">
+                        {% else %}
+                            <span>{{ row["display_name"][:1] }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="ranking-user-main">
+                        <strong>{{ row["display_name"] }}</strong>
+                        <span>Lv.{{ row["level"] }} {{ row["title"] }}</span>
+                    </div>
+
+                    <div class="ranking-metrics">
+                        <div>
+                            <strong>{{ row["correct_answers"] }}</strong>
+                            <span>正解</span>
+                        </div>
+                        <div>
+                            <strong>{{ row["accuracy"] }}%</strong>
+                            <span>正答率</span>
+                        </div>
+                        <div>
+                            <strong>{{ row["total_answers"] }}</strong>
+                            <span>回答</span>
+                        </div>
+                        <div>
+                            <strong>🔥{{ row["streak"] }}</strong>
+                            <span>連続</span>
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+{% else %}
+    <section class="empty-card ranking-empty">
+        <img src="{{ url_for('static', filename='images/cats/cat-sleepy.png') }}" alt="まだランキングがない子猫">
+        <h2>まだランキングがありません</h2>
+        <p>クイズを解くと、ここにユーザー別のランキングが表示されます。</p>
+        <div class="hero-actions">
+            <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='all', count=10) }}">10問クイズを始める</a>
+        </div>
+    </section>
+{% endif %}
+{% endblock %}

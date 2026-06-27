@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}インポート結果 - English Pocket{% endblock %}
+
+{% block content %}
+<section class="result-card">
+    <p class="eyebrow">Import result</p>
+    <h1>取り込み結果</h1>
+
+    {% if error %}
+        <p class="lead">{{ error }}</p>
+    {% else %}
+        <div class="score-big">{{ imported_count }}</div>
+        <p class="lead">件の単語を追加しました。</p>
+        <p class="muted">重複スキップ: {{ skipped_count or 0 }}件</p>
+    {% endif %}
+
+    <div class="hero-actions">
+        <a class="button primary" href="{{ url_for('words') }}">単語一覧へ</a>
+        <a class="button secondary" href="{{ url_for('import_words') }}">もう一度取り込む</a>
+    </div>
+</section>
+{% endblock %}

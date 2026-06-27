@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}結果 - English Pocket{% endblock %}
+
+{% block content %}
+<section class="result-card {% if is_correct %}correct{% else %}wrong{% endif %}">
+    {% if is_correct %}
+        <p class="result-mark">正解！</p>
+    {% else %}
+        <p class="result-mark">不正解...</p>
+    {% endif %}
+
+    {% set reaction_cat = 'images/cats/cat-neutral.png' if is_correct else 'images/cats/cat-sad.png' %}
+    <div class="cat-reaction-panel {% if is_correct %}cat-correct{% else %}cat-wrong{% endif %}">
+        <img src="{{ url_for('static', filename=reaction_cat) }}" alt="{% if is_correct %}正解を喜ぶ子猫{% else %}不正解で悲しそうな子猫{% endif %}">
+        <div>
+            {% if is_correct %}
+                <strong>やった、正解にゃ。</strong>
+                <p>この調子で語彙力をもふもふ育てよう。</p>
+            {% else %}
+                <strong>惜しいにゃ…。</strong>
+                <p>でもミスった単語は伸びしろ。次で回収しよう。</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <h1>{{ word["english"] }}</h1>
+    {% if word["audio_file"] %}
+        <p class="muted">保存済み音声</p>
+        <audio controls preload="auto" src="{{ url_for('static', filename=word['audio_file']) }}"></audio>
+    {% else %}
+        <button class="speak-button big" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.9">🔊 発音</button>
+        <button class="speak-button big" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.6">🐢 ゆっくり</button>
+    {% endif %}
+
+    <div class="answer-box">
+        <p><span>あなたの回答</span>{{ user_answer }}</p>
+        <p><span>正解</span>{{ word["japanese"] }}</p>
+    </div>
+
+    {% if word["example"] %}
+        <p class="example">{{ word["example"] }}</p>
+    {% endif %}
+
+    <div class="hero-actions">
+        {% if mode == "listen" %}
+            <a class="button primary" href="{{ url_for('listen_quiz', scope=scope) }}">次の音声問題</a>
+        {% else %}
+            <a class="button primary" href="{{ url_for('quiz', mode=mode, scope=scope) }}">次の問題</a>
+        {% endif %}
+        <a class="button secondary" href="{{ url_for('session_start', mode=mode if mode in ['choice', 'input', 'listen'] else 'choice', scope=scope, count=10) }}">10問やる</a>
+        <a class="button secondary" href="{{ url_for('dashboard') }}">記録を見る</a>
+    </div>
+</section>
+{% endblock %}

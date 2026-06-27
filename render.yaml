@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: english-pocket
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: DATA_DIR
+        value: /var/data
+      - key: DB_PATH
+        value: /var/data/english.db
+      - key: SECRET_KEY
+        generateValue: true
+    disk:
+      name: english-pocket-data
+      mountPath: /var/data
+      sizeGB: 1

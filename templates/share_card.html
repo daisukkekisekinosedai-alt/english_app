@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}共有カード - English Pocket{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p class="eyebrow">Share Card</p>
+    <h1>共有カード</h1>
+    <p class="lead small-lead">このカードをスクショして、X・LINE・Instagramに貼れます。</p>
+</section>
+
+<section class="share-card-wrap">
+    <article class="share-card">
+        <div class="share-card-top">
+            <div>
+                <p>English Pocket</p>
+                <h2>{{ user["display_name"] }} の今日の英語ログ</h2>
+            </div>
+            {% if user["icon_file"] %}
+                <img src="{{ url_for('static', filename=user['icon_file']) }}" alt="icon">
+            {% else %}
+                <span class="share-card-icon">{{ user["display_name"][:1] }}</span>
+            {% endif %}
+        </div>
+
+        <div class="share-card-score">
+            <strong>{{ total_correct }}/{{ total_answers }}</strong>
+            <span>正解・正答率 {{ accuracy }}%</span>
+        </div>
+
+        <p class="share-card-comment">{{ comment }}</p>
+
+        <div class="share-card-meta">
+            <span>Lv.{{ stats.gamification.game.level }} {{ stats.gamification.game.title }}</span>
+            <span>🔥 {{ stats.gamification.streak.current }}日連続</span>
+            <span>{{ stats.gamification.game.exp }} EXP</span>
+        </div>
+
+        {% if stats.gamification.recent_badges %}
+            <div class="share-card-badges">
+                {% for badge in stats.gamification.recent_badges %}
+                    <span>{{ badge.icon }} {{ badge.name }}</span>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <p class="share-card-hash">#英語学習 #TOEIC #今日の積み上げ</p>
+    </article>
+</section>
+
+<section class="card">
+    <p class="muted">スマホならこのカード部分をスクショするとそれっぽく共有できます。</p>
+    <div class="hero-actions">
+        <a class="button secondary" href="{{ url_for('share_today') }}">テキスト共有へ</a>
+    </div>
+</section>
+{% endblock %}

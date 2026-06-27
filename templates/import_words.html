@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}CSVインポート - English Pocket{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p class="eyebrow">Import</p>
+    <h1>CSVインポート</h1>
+    <p class="lead small-lead">CSVから単語をまとめて追加できます。Excelで作ってCSV保存してもOKです。</p>
+
+    <form method="POST" enctype="multipart/form-data" class="form">
+        <label>
+            CSVファイル
+            <input type="file" name="csv_file" accept=".csv" required>
+        </label>
+        <button class="button primary" type="submit">取り込む</button>
+    </form>
+
+    <div class="api-list">
+        <code>english,japanese,example,memo,audio_text,category,level</code>
+        <code>This is a pen.,これはペンです,This is a pen.,冠詞aは弱く読む,This is uh pen.,日常,1</code>
+    </div>
+
+    <p class="muted">日本語ヘッダ「英単語,日本語,例文,メモ,音声用テキスト,カテゴリ,レベル」でも取り込めます。</p>
+</section>
+{% endblock %}

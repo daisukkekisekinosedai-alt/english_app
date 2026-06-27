@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}音声ファイル管理 - English Pocket{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p class="eyebrow">Natural free TTS</p>
+    <h1>自然な音声を作る</h1>
+    <p class="lead small-lead">
+        無料・APIキーなしで音声ファイルを生成します。まずは「Edge自然音声」を使うのがおすすめです。
+        失敗した場合は自動で gTTS や Windows音声にフォールバックします。
+    </p>
+
+    <section class="stats-grid">
+        <div class="stat-card">
+            <span class="stat-label">単語数</span>
+            <strong>{{ words|length }}</strong>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">単語音声</span>
+            <strong>{{ generated_count }}</strong>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">例文音声</span>
+            <strong>{{ example_generated_count }}</strong>
+        </div>
+    </section>
+
+    <div class="warning-box">
+        <strong>おすすめ設定</strong>
+        <p>
+            声は「Jenny / 米国女性」、速度は「標準」がおすすめです。
+            `This is a pen.` のように、できるだけ完全な文で登録すると自然になりやすいです。
+        </p>
+    </div>
+
+    <form method="POST" action="{{ url_for('generate_audio_all') }}" class="form tts-form">
+        <label>
+            声
+            <select name="voice">
+                {% for voice_id, voice_name in edge_voices %}
+                    <option value="{{ voice_id }}" {% if voice_id == default_edge_voice %}selected{% endif %}>
+                        {{ voice_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>
+            速度
+            <select name="rate">
+                <option value="-15%">ゆっくり</option>
+                <option value="-5%">少しゆっくり</option>
+                <option value="+0%" selected>標準</option>
+                <option value="+8%">少し速い</option>
+            </select>
+        </label>
+
+        <div class="hero-actions">
+            <button class="button primary" type="submit" name="prefer" value="edge">Edge自然音声で全件生成</button>
+            <button class="button secondary" type="submit" name="prefer" value="gtts">gTTSで全件生成</button>
+            <button class="button ghost" type="submit" name="prefer" value="local">Windows音声で全件生成</button>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>単語別の音声</h2>
+
+    {% if words %}
+        <div class="word-list top-space">
+            {% for word in words %}
+                <article class="word-card">
+                    <div class="word-main">
+                        <h2>{{ word["english"] }}</h2>
+                        <p class="meaning">{{ word["japanese"] }}</p>
+
+                        {% if word["audio_text"] %}
+                            <p class="memo">読み上げ用: {{ word["audio_text"] }}</p>
+                        {% endif %}
+
+                        {% if word["audio_file"] %}
+                            <audio controls preload="none" src="{{ url_for('static', filename=word['audio_file']) }}"></audio>
+                        {% else %}
+                            <p class="muted">単語音声は未生成です。</p>
+                        {% endif %}
+
+                        {% if word["example"] %}
+                            <p class="example">{{ word["example"] }}</p>
+                            {% if word["example_audio_file"] %}
+                                <audio controls preload="none" src="{{ url_for('static', filename=word['example_audio_file']) }}"></audio>
+                            {% else %}
+                                <p class="muted">例文音声は未生成です。</p>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+
+                    <div class="word-actions">
+                        <form method="POST" action="{{ url_for('generate_word_audio', word_id=word['id']) }}">
+                            <input type="hidden" name="target" value="word">
+                            <input type="hidden" name="voice" value="{{ default_edge_voice }}">
+                            <input type="hidden" name="rate" value="+0%">
+                            <button class="button primary small" type="submit" name="prefer" value="edge">自然mp3</button>
+                            <button class="button secondary small" type="submit" name="prefer" value="gtts">gTTS</button>
+                        </form>
+
+                        {% if word["example"] %}
+                            <form method="POST" action="{{ url_for('generate_word_audio', word_id=word['id']) }}">
+                                <input type="hidden" name="target" value="example">
+                                <input type="hidden" name="voice" value="{{ default_edge_voice }}">
+                                <input type="hidden" name="rate" value="+0%">
+                                <button class="button ghost small" type="submit" name="prefer" value="edge">例文mp3</button>
+                            </form>
+                        {% endif %}
+
+                        <a class="button secondary small" href="{{ url_for('edit_word', word_id=word['id']) }}">編集</a>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">まだ単語がありません。</p>
+    {% endif %}
+</section>
+{% endblock %}

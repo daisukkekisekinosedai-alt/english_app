@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}ホーム - English Pocket{% endblock %}
+
+{% block content %}
+<section class="hero-card real-cat-hero">
+    <div class="real-cat-hero-text">
+        <p class="eyebrow">Pink cat learning app 🐾</p>
+        <h1>英語学習を<br>もっとかわいく。</h1>
+        <p class="lead">ようこそ、{{ current_user["display_name"] }}さん。今日も猫といっしょに、ゆるっと語彙力を育てよう。単語はみんなで共有、成績はあなた専用です。</p>
+    </div>
+
+    <img class="hero-real-cat" src="{{ url_for('static', filename='images/cats/cat-play.png') }}" alt="ピンクの毛糸で遊ぶ子猫">
+
+    <div class="hero-actions">
+        <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='all', count=10) }}">🐾 10問連続クイズ</a>
+        <a class="button secondary" href="{{ url_for('listen_quiz') }}">🎧 音声で聞く</a>
+        <a class="button secondary" href="{{ url_for('quiz', mode='choice') }}">🐱 1問クイズ</a>
+        <a class="button secondary" href="{{ url_for('quiz', mode='input') }}">🎀 入力式</a>
+    </div>
+</section>
+
+<section class="cat-mood-strip card">
+    <img src="{{ url_for('static', filename='images/cats/cat-neutral.png') }}" alt="通常の子猫">
+    <div>
+        <p class="eyebrow">Today’s buddy</p>
+        <h2>今日の相棒ねこ</h2>
+        <p class="muted">正解したらうれしい猫、不正解ならしょんぼり猫が出ます。地味に応援してくれるやつです。</p>
+    </div>
+</section>
+
+<section class="card game-card">
+    <div class="game-head">
+        <div>
+            <p class="eyebrow">Level</p>
+            <h2>Lv.{{ stats.gamification.game.level }} {{ stats.gamification.game.title }}</h2>
+            <p class="muted">EXP {{ stats.gamification.game.exp }} / 次のレベルまであと {{ stats.gamification.game.need - stats.gamification.game.progress }}</p>
+        </div>
+        <div class="streak-badge">🔥 {{ stats.gamification.streak.current }}日連続</div>
+    </div>
+    <div class="progress-bar">
+        <span style="width: {{ stats.gamification.game.progress_pct }}%"></span>
+    </div>
+    {% if stats.gamification.recent_badges %}
+        <div class="badge-list compact">
+            {% for badge in stats.gamification.recent_badges %}
+                <span class="unlock-badge">{{ badge.icon }} {{ badge.name }}</span>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+
+<section class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-label">単語数</span>
+        <strong>{{ stats.total_words }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">お気に入り</span>
+        <strong>{{ stats.favorite_words }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">回答数</span>
+        <strong>{{ stats.total_logs }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">正答率</span>
+        <strong>{{ stats.accuracy }}%</strong>
+    </div>
+</section>
+
+<section class="card">
+    <h2>メニュー</h2>
+    <div class="action-list">
+        <a href="{{ url_for('add_word') }}">➕ 単語を追加する</a>
+        <a href="{{ url_for('words') }}">🔍 単語一覧・検索</a>
+        <a href="{{ url_for('session_start', mode='listen', scope='all', count=10) }}">🎧 音声リスニング10問</a>
+        <a href="{{ url_for('session_start', mode='choice', scope='weak', count=10) }}">💗 苦手単語10問</a>
+        <a href="{{ url_for('session_start', mode='choice', scope='favorite', count=10) }}">⭐ お気に入り10問</a>
+        <a href="{{ url_for('review') }}">🐾 復習モード</a>
+        <a href="{{ url_for('toeic_modes') }}">📚 TOEICカテゴリ別モード</a>
+        <a href="{{ url_for('badges') }}">🏅 称号・バッジ</a>
+        <a href="{{ url_for('dashboard') }}">📈 学習記録を見る</a>
+        <a href="{{ url_for('import_words') }}">📥 CSVインポート</a>
+        <a href="{{ url_for('tts_page') }}">🔊 音声ファイル管理</a>
+        <a href="{{ url_for('rankings') }}">🏆 ランキングを見る</a>
+        <a href="{{ url_for('users') }}">👭 ユーザー一覧を見る</a>
+        <a href="{{ url_for('share_today') }}">💌 今日の結果を共有</a>
+        <a href="{{ url_for('profile') }}">🐱 プロフィール</a>
+    </div>
+
+    <form method="POST" action="{{ url_for('seed_words') }}" class="seed-form">
+        <button class="button ghost" type="submit">サンプル単語20件を追加</button>
+    </form>
+</section>
+
+{% if stats.category_stats %}
+<section class="card">
+    <h2>カテゴリ</h2>
+    <div class="tag-list">
+        {% for row in stats.category_stats %}
+            <a class="tag" href="{{ url_for('words', category=row['category']) }}">{{ row["category"] }} {{ row["count"] }}</a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}

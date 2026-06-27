@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}クイズ - English Pocket{% endblock %}
+
+{% block content %}
+<section class="quiz-card">
+    <div class="quiz-cat-companion">
+        <img src="{{ url_for('static', filename='images/cats/cat-neutral.png') }}" alt="こちらを見る子猫">
+        <p>落ち着いていこう。ねこも見守っています。</p>
+    </div>
+    <p class="eyebrow">{% if mode == "input" %}Input quiz{% else %}Choice quiz{% endif %}</p>
+    <h1>この英単語の意味は？</h1>
+
+    <div class="question-word-row">
+        <div class="question-word">{{ word["english"] }}</div>
+        <button class="speak-button big" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.9">🔊</button>
+        <button class="speak-button big" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.6">🐢</button>
+    </div>
+
+    <div class="tag-list center-tags">
+        <span class="tag">{{ word["category"] }}</span>
+        <span class="tag">Lv.{{ word["level"] }}</span>
+    </div>
+
+    {% if word["example"] %}
+        <p class="example center">{{ word["example"] }}</p>
+        <button class="button ghost small" type="button" data-speak="{{ word['example'] }}" data-rate="0.9">例文を聞く</button>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('answer') }}" class="quiz-form">
+        <input type="hidden" name="word_id" value="{{ word['id'] }}">
+        <input type="hidden" name="mode" value="{{ mode }}">
+        <input type="hidden" name="scope" value="{{ scope }}">
+
+        {% if mode == "input" %}
+            <label class="input-answer-label">
+                回答
+                <input type="text" name="answer" required autofocus placeholder="日本語の意味を入力">
+            </label>
+            <button class="button primary wide" type="submit">回答する</button>
+        {% else %}
+            <div class="choice-grid">
+                {% for choice in choices %}
+                    <button class="choice-button" type="submit" name="answer" value="{{ choice }}">{{ choice }}</button>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </form>
+
+    <div class="mode-switch">
+        <a href="{{ url_for('quiz', mode='choice', scope='all') }}">全単語</a>
+        <a href="{{ url_for('quiz', mode='choice', scope='weak') }}">苦手</a>
+        <a href="{{ url_for('quiz', mode='choice', scope='favorite') }}">お気に入り</a>
+        <a href="{{ url_for('quiz', mode='input', scope=scope) }}">入力式</a>
+    </div>
+</section>
+{% endblock %}

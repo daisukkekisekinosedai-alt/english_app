@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}10問クイズ - English Pocket{% endblock %}
+
+{% block content %}
+<section class="quiz-card">
+    <div class="quiz-cat-companion">
+        <img src="{{ url_for('static', filename='images/cats/cat-neutral.png') }}" alt="こちらを見る子猫">
+        <p>落ち着いていこう。ねこも見守っています。</p>
+    </div>
+    <p class="eyebrow">10 question quiz</p>
+
+    <div class="progress-wrap">
+        <div class="progress-label">
+            <span>{{ data.index + 1 }} / {{ data.total }}</span>
+            <span>正解 {{ data.correct }}</span>
+        </div>
+        <div class="progress-bar">
+            <div style="width: {{ ((data.index) / data.total * 100) | round(0) }}%;"></div>
+        </div>
+    </div>
+
+    <h1>{% if data.mode == "listen" %}音声を聞いて意味は？{% else %}この英単語の意味は？{% endif %}</h1>
+
+    {% if data.mode == "listen" %}
+        <div class="listen-panel">
+            <p class="lead small-lead">まず音声を聞いて、日本語の意味を入力してください。</p>
+            {% if word["audio_file"] %}
+                <p class="muted">保存済み音声</p>
+                <audio controls autoplay preload="auto" src="{{ url_for('static', filename=word['audio_file']) }}"></audio>
+            {% else %}
+                <div class="listen-actions">
+                    <button class="button primary" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.9">🔊 再生</button>
+                    <button class="button secondary" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.6">🐢 ゆっくり</button>
+                </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="question-word-row">
+            <div class="question-word">{{ word["english"] }}</div>
+            <button class="speak-button big" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.9">🔊</button>
+            <button class="speak-button big" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.6">🐢</button>
+        </div>
+    {% endif %}
+
+    <div class="tag-list center-tags">
+        <span class="tag">{{ word["category"] }}</span>
+        <span class="tag">Lv.{{ word["level"] }}</span>
+    </div>
+
+    {% if word["example"] %}
+        <p class="example center">{{ word["example"] }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('session_answer') }}" class="quiz-form">
+        <input type="hidden" name="word_id" value="{{ word['id'] }}">
+
+        {% if data.mode == "input" or data.mode == "listen" %}
+            <label class="input-answer-label">
+                回答
+                <input type="text" name="answer" required autofocus placeholder="日本語の意味を入力">
+            </label>
+            <button class="button primary wide" type="submit">回答する</button>
+        {% else %}
+            <div class="choice-grid">
+                {% for choice in choices %}
+                    <button class="choice-button" type="submit" name="answer" value="{{ choice }}">{{ choice }}</button>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </form>
+
+    <p class="muted"><a href="{{ url_for('session_reset') }}">中断してホームへ</a></p>
+</section>
+{% endblock %}

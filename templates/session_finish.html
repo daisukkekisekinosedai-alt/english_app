@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}10問クイズ完了 - English Pocket{% endblock %}
+
+{% block content %}
+<section class="result-card correct">
+    <p class="eyebrow">Finished</p>
+    <h1>結果発表</h1>
+
+    <div class="score-big">{{ data.correct }} / {{ data.total }}</div>
+    <p class="lead">正答率 {{ accuracy }}%</p>
+
+    {% if accuracy >= 90 %}
+        {% set finish_cat = 'images/cats/cat-play.png' %}
+        {% set finish_message = 'ほぼ完璧。猫もテンション上がってます。' %}
+    {% elif accuracy >= 60 %}
+        {% set finish_cat = 'images/cats/cat-rest.png' %}
+        {% set finish_message = 'いい感じ。休みながらもう一周いけます。' %}
+    {% else %}
+        {% set finish_cat = 'images/cats/cat-sad.png' %}
+        {% set finish_message = '今日は伸びしろ回。苦手を拾えば一気に強くなります。' %}
+    {% endif %}
+
+    <div class="finish-cat-panel">
+        <img src="{{ url_for('static', filename=finish_cat) }}" alt="結果に合わせた子猫">
+        <p>{{ finish_message }}</p>
+    </div>
+
+    <div class="hero-actions">
+        <a class="button primary" href="{{ url_for('session_start', mode=data.mode, scope=data.scope, count=data.total) }}">もう一回</a>
+        <a class="button secondary" href="{{ url_for('share_session', test_session_id=test_session['id']) }}">結果を共有</a>
+        <a class="button secondary" href="{{ url_for('weak') }}">苦手単語を見る</a>
+        <a class="button secondary" href="{{ url_for('session_reset') }}">ホームへ</a>
+    </div>
+
+    {% if test_session %}
+        <div class="share-box">
+            <h2>共有用テキスト</h2>
+            <textarea readonly rows="6">{{ test_session["share_text"] }}</textarea>
+            <button class="button ghost copy-button" type="button" data-copy-target="share-finish-text">コピー</button>
+            <textarea id="share-finish-text" class="hidden-copy">{{ test_session["share_text"] }}</textarea>
+        </div>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2>回答一覧</h2>
+    <div class="log-list">
+        {% for answer in data.answers %}
+            <div class="log-row">
+                <div>
+                    <strong>{{ answer.english }}</strong>
+                    <p>{{ answer.user_answer }} → {{ answer.correct_answer }}</p>
+                </div>
+                <span class="badge {% if answer.is_correct %}ok{% else %}ng{% endif %}">
+                    {% if answer.is_correct %}正解{% else %}不正解{% endif %}
+                </span>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

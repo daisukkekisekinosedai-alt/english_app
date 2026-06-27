@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}ログイン - English Pocket{% endblock %}
+{% block content %}
+<section class="auth-card card">
+    <p class="eyebrow">Login</p>
+    <h1>ログイン</h1>
+    {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+    <form method="POST" class="form">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <label>ユーザー名<input type="text" name="username" required autofocus></label>
+        <label>パスワード<input type="password" name="password" required></label>
+        <button class="button primary" type="submit">ログイン</button>
+    </form>
+    <p class="muted">初めてなら <a href="{{ url_for('register') }}">ユーザー登録</a></p>
+</section>
+{% endblock %}

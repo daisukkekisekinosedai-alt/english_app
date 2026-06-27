@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}TOEICカテゴリ別モード - English Pocket{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p class="eyebrow">TOEIC Modes</p>
+    <h1>TOEICカテゴリ別モード</h1>
+    <p class="lead small-lead">契約・会計・物流・抽象語など、TOEICで刺さりやすいカテゴリごとに10問クイズできます。</p>
+</section>
+
+<section class="category-mode-grid">
+    {% for item in categories %}
+        <article class="category-mode-card">
+            <h2>{{ item.category }}</h2>
+            <p>{{ item.count }}語</p>
+            <div class="hero-actions">
+                <a class="button primary small" href="{{ url_for('session_start', mode='choice', scope='category:' ~ item.category, count=10) }}">4択</a>
+                <a class="button secondary small" href="{{ url_for('session_start', mode='input', scope='category:' ~ item.category, count=10) }}">入力</a>
+                <a class="button ghost small" href="{{ url_for('session_start', mode='listen', scope='category:' ~ item.category, count=10) }}">音声</a>
+            </div>
+        </article>
+    {% endfor %}
+</section>
+{% endblock %}

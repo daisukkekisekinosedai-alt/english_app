@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}プロフィール - English Pocket{% endblock %}
+
+{% block content %}
+{% set game = stats.gamification.game %}
+{% set streak = stats.gamification.streak %}
+{% set badges = stats.gamification.badges %}
+{% set unlocked_badges = badges | selectattr("unlocked") | list %}
+{% set locked_badges = badges | rejectattr("unlocked") | list %}
+
+<section class="profile-hero">
+    <div class="profile-hero-bg"></div>
+
+    <div class="profile-hero-main">
+        <div class="profile-avatar-wrap">
+            {% if user["icon_file"] %}
+                <img class="profile-avatar-large" src="{{ url_for('static', filename=user['icon_file']) }}" alt="icon">
+            {% else %}
+                <div class="profile-avatar-large placeholder">{{ user["display_name"][:1] }}</div>
+            {% endif %}
+            <span class="profile-level-pill">Lv.{{ game.level }}</span>
+        </div>
+
+        <div class="profile-title-area">
+            <p class="eyebrow profile-eyebrow">My Kitty Profile 🐱</p>
+            <h1>{{ user["display_name"] }}</h1>
+            <p class="profile-userline">@{{ user["username"] }} / {{ game.title }}</p>
+
+            <div class="profile-quick-badges">
+                <span>⚡ {{ game.exp }} EXP</span>
+                <span>🔥 {{ streak.current }}日連続</span>
+                <span>🏅 {{ unlocked_badges|length }}個解放</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-progress-area">
+        <div class="profile-progress-label">
+            <span>次のレベルまで</span>
+            <strong>あと {{ game.need - game.progress }} EXP</strong>
+        </div>
+        <div class="progress-bar profile-progress">
+            <span style="width: {{ game.progress_pct }}%"></span>
+        </div>
+    </div>
+</section>
+
+<section class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-label">回答数</span>
+        <strong>{{ stats.total_logs }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">正解数</span>
+        <strong>{{ stats.correct_logs }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">正答率</span>
+        <strong>{{ stats.accuracy }}%</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">最長ストリーク</span>
+        <strong>{{ streak.longest }}日</strong>
+    </div>
+</section>
+
+<section class="profile-two-column">
+    <article class="card profile-panel">
+        <div class="section-title-row">
+            <div>
+                <p class="eyebrow">Badges</p>
+                <h2>獲得バッジ 🎀</h2>
+            </div>
+            <a class="button secondary small" href="{{ url_for('badges') }}">全部見る</a>
+        </div>
+
+        {% if unlocked_badges %}
+            <div class="profile-badge-grid">
+                {% for badge in unlocked_badges[-6:] %}
+                    <div class="profile-badge unlocked">
+                        <span>{{ badge.icon }}</span>
+                        <strong>{{ badge.name }}</strong>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">まだバッジは未解放です。まずは1問解くところから。</p>
+        {% endif %}
+    </article>
+
+    <article class="card profile-panel">
+        <div class="section-title-row">
+            <div>
+                <p class="eyebrow">Next Goals</p>
+                <h2>次に狙える称号 🐾</h2>
+            </div>
+        </div>
+
+        {% if locked_badges %}
+            <div class="next-badge-list">
+                {% for badge in locked_badges[:4] %}
+                    <div class="next-badge">
+                        <span>{{ badge.icon }}</span>
+                        <div>
+                            <strong>{{ badge.name }}</strong>
+                            <p>{{ badge.description }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">全部解放済み。強すぎる。</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="card profile-panel">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Share</p>
+            <h2>今日の結果をかわいくシェア</h2>
+        </div>
+    </div>
+
+    <p class="muted">共有カードはスクショ向き、テキスト共有はXやLINEにそのまま貼れます。</p>
+
+    <div class="hero-actions">
+        <a class="button primary" href="{{ url_for('share_card') }}">共有カード</a>
+        <a class="button secondary" href="{{ url_for('share_today') }}">テキスト共有</a>
+        <a class="button secondary" href="{{ url_for('rankings') }}">ランキング</a>
+    </div>
+</section>
+
+<section class="card profile-panel">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Settings</p>
+            <h2>プロフィール編集</h2>
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="form profile-form">
+        <label>
+            表示名
+            <input type="text" name="display_name" value="{{ user['display_name'] }}" required>
+        </label>
+
+        <label>
+            新しいパスワード
+            <input type="password" name="new_password" placeholder="変更しないなら空欄">
+        </label>
+
+        <label>
+            アイコン画像
+            <input type="file" name="icon" accept="image/*">
+        </label>
+
+        <button class="button primary" type="submit">プロフィールを保存</button>
+    </form>
+
+    <div class="hero-actions">
+        <a class="button secondary" href="{{ url_for('dashboard') }}">学習記録</a>
+        <a class="button secondary" href="{{ url_for('review') }}">復習モード</a>
+        <a class="button danger" href="{{ url_for('logout') }}">ログアウト</a>
+    </div>
+</section>
+{% endblock %}

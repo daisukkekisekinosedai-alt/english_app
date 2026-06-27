@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}単語一覧 - English Pocket{% endblock %}
+
+{% block content %}
+<div class="page-title-row">
+    <div>
+        <p class="eyebrow">Word list</p>
+        <h1>単語一覧</h1>
+    </div>
+    <a class="button primary small" href="{{ url_for('add_word') }}">追加</a>
+</div>
+
+<section class="card mini-card shared-word-note">
+    <p class="muted">
+        単語データは全ユーザー共通です。誰かが追加した単語は別ユーザーでも使えます。お気に入り・テスト結果・苦手単語はログイン中のユーザー専用です。
+    </p>
+    {% if added or skipped %}
+        <p class="muted">追加: {{ added or 0 }}件 / 重複スキップ: {{ skipped or 0 }}件</p>
+    {% endif %}
+    {% if request.args.get("error") == "not_owner" %}
+        <p class="muted">この単語は別ユーザーが追加したため削除できません。</p>
+    {% endif %}
+</section>
+
+<section class="card mini-card">
+    <form method="GET" action="{{ url_for('words') }}" class="filter-form">
+        <input type="text" name="q" value="{{ q }}" placeholder="英語・日本語・メモを検索">
+
+        <select name="category">
+            <option value="">全カテゴリ</option>
+            {% for category in categories %}
+                <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
+            {% endfor %}
+        </select>
+
+        <label class="checkbox-line">
+            <input type="checkbox" name="favorite" value="1" {% if favorite %}checked{% endif %}>
+            お気に入りのみ
+        </label>
+
+        <button class="button primary small" type="submit">検索</button>
+        <a class="button secondary small" href="{{ url_for('words') }}">クリア</a>
+    </form>
+
+    <div class="toolbar">
+        <a class="button secondary small" href="{{ url_for('import_words') }}">CSV取込</a>
+        <a class="button secondary small" href="{{ url_for('export_words') }}">CSV出力</a>
+    </div>
+</section>
+
+{% if words %}
+    <div class="word-list">
+        {% for word in words %}
+            <article class="word-card">
+                <div class="word-main">
+                    <div class="word-heading">
+                        <h2>{{ word["english"] }}</h2>
+                        <button class="speak-button" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.9">🔊</button>
+                        <button class="speak-button" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.6">🐢</button>
+                    </div>
+                    <p class="meaning">{{ word["japanese"] }}</p>
+                    <div class="tag-list small-tags">
+                        {% if word["favorite"] %}
+                            <span class="tag favorite-tag">★ お気に入り</span>
+                        {% endif %}
+                        <span class="tag">{{ word["category"] }}</span>
+                        <span class="tag">Lv.{{ word["level"] }}</span>
+                        {% if word["created_by_name"] %}
+                            <span class="tag">追加者: {{ word["created_by_name"] }}</span>
+                        {% else %}
+                            <span class="tag">追加者: 旧データ</span>
+                        {% endif %}
+                    </div>
+                    {% if word["audio_file"] %}
+                        <audio controls preload="none" src="{{ url_for('static', filename=word['audio_file']) }}"></audio>
+                    {% endif %}
+
+                    {% if word["example"] %}
+                        <p class="example">{{ word["example"] }}</p>
+                        {% if word["example_audio_file"] %}
+                            <audio controls preload="none" src="{{ url_for('static', filename=word['example_audio_file']) }}"></audio>
+                        {% else %}
+                            <button class="button ghost small" type="button" data-speak="{{ word['example'] }}" data-rate="0.9">例文を聞く</button>
+                        {% endif %}
+                    {% endif %}
+                    {% if word["memo"] %}
+                        <p class="memo">{{ word["memo"] }}</p>
+                    {% endif %}
+                    {% if word["audio_text"] %}
+                        <p class="memo">音声: {{ word["audio_text"] }}</p>
+                    {% endif %}
+                </div>
+                <div class="word-actions">
+                    {% if not word["audio_file"] %}
+                        <form method="POST" action="{{ url_for('generate_word_audio', word_id=word['id']) }}">
+                            <input type="hidden" name="target" value="word">
+                            <button class="button primary small" type="submit" name="prefer" value="gtts">音声生成</button>
+                        </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('toggle_favorite', word_id=word['id']) }}">
+                        <button class="button ghost small" type="submit">{% if word["favorite"] %}★解除{% else %}☆追加{% endif %}</button>
+                    </form>
+                    <a class="button secondary small" href="{{ url_for('edit_word', word_id=word['id']) }}">編集</a>
+                    {% if not word["created_by_user_id"] or word["created_by_user_id"] == current_user["id"] %}
+                        <form method="POST" action="{{ url_for('delete_word', word_id=word['id']) }}" onsubmit="return confirm('この単語を削除しますか？');">
+                            <button class="button danger small" type="submit">削除</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+{% else %}
+    <section class="empty-card">
+        <h2>条件に合う単語がありません</h2>
+        <p>検索条件を変えるか、新しい単語を追加してみましょう。</p>
+        <a class="button primary" href="{{ url_for('add_word') }}">単語を追加する</a>
+    </section>
+{% endif %}
+{% endblock %}

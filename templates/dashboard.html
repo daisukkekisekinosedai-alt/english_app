@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}学習記録 - English Pocket{% endblock %}
+
+{% block content %}
+<div class="page-title-row">
+    <div>
+        <p class="eyebrow">Dashboard</p>
+        <h1>{{ current_user["display_name"] }}さんの学習記録</h1>
+    </div>
+</div>
+
+<section class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-label">単語数</span>
+        <strong>{{ stats.total_words }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">自分のお気に入り</span>
+        <strong>{{ stats.favorite_words }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">回答数</span>
+        <strong>{{ stats.total_logs }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">正解数</span>
+        <strong>{{ stats.correct_logs }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">正答率</span>
+        <strong>{{ stats.accuracy }}%</strong>
+    </div>
+</section>
+
+<section class="card game-card">
+    <h2>ゲーム進捗</h2>
+    <div class="game-head">
+        <div>
+            <strong>Lv.{{ stats.gamification.game.level }} {{ stats.gamification.game.title }}</strong>
+            <p class="muted">EXP {{ stats.gamification.game.exp }} / 満点 {{ stats.gamification.game.perfect_sessions }}回</p>
+        </div>
+        <div class="streak-badge">🔥 {{ stats.gamification.streak.current }}日連続</div>
+    </div>
+    <div class="progress-bar">
+        <span style="width: {{ stats.gamification.game.progress_pct }}%"></span>
+    </div>
+    <p class="muted">最長ストリーク: {{ stats.gamification.streak.longest }}日</p>
+    <div class="hero-actions">
+        <a class="button secondary" href="{{ url_for('badges') }}">称号を見る</a>
+        <a class="button secondary" href="{{ url_for('review') }}">復習する</a>
+        <a class="button secondary" href="{{ url_for('share_card') }}">共有カード</a>
+    </div>
+</section>
+
+<section class="card">
+    <h2>カテゴリ別単語数</h2>
+    {% if stats.category_stats %}
+        <div class="tag-list">
+            {% for row in stats.category_stats %}
+                <a class="tag" href="{{ url_for('words', category=row['category']) }}">{{ row["category"] }} {{ row["count"] }}</a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">まだカテゴリがありません。</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2>最近のテスト結果</h2>
+    {% if stats.recent_tests %}
+        <div class="log-list">
+            {% for test in stats.recent_tests %}
+                <div class="log-row">
+                    <div>
+                        <strong>{{ test["mode"] }} / {{ test["scope"] }}</strong>
+                        <p>{{ test["correct_count"] }} / {{ test["total_count"] }} 正解・{{ test["accuracy"] }}%・{{ test["created_at"] }}</p>
+                    </div>
+                    <a class="button secondary small" href="{{ url_for('share_session', test_session_id=test['id']) }}">共有</a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">まだ10問テスト結果がありません。</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2>最近の回答</h2>
+
+    {% if stats.recent_logs %}
+        <div class="log-list">
+            {% for log in stats.recent_logs %}
+                <div class="log-row">
+                    <div>
+                        <strong>{{ log["english"] }}</strong>
+                        <p>{{ log["user_answer"] }} → {{ log["correct_answer"] }}</p>
+                    </div>
+                    <span class="badge {% if log['is_correct'] %}ok{% else %}ng{% endif %}">
+                        {% if log["is_correct"] %}正解{% else %}不正解{% endif %}
+                    </span>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">まだ回答履歴がありません。</p>
+    {% endif %}
+</section>
+{% endblock %}

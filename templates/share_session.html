@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}テスト結果を共有 - English Pocket{% endblock %}
+{% block content %}
+<section class="result-card correct">
+    <p class="eyebrow">Share result</p>
+    <h1>{{ test_session["correct_count"] }} / {{ test_session["total_count"] }}</h1>
+    <p class="lead">{{ test_session["mode"] }} / {{ test_session["scope"] }} ・ 正答率 {{ test_session["accuracy"] }}%</p>
+    <div class="share-box">
+        <h2>そのまま投稿できるテキスト</h2>
+        <textarea id="share-session-text" readonly rows="12">{{ test_session["share_text"] }}</textarea>
+        <button class="button primary copy-button" type="button" data-copy-target="share-session-text">コピー</button>
+    </div>
+    <div class="hero-actions">
+        <a class="button secondary" href="{{ url_for('dashboard') }}">学習記録へ</a>
+        <a class="button secondary" href="{{ url_for('share_today') }}">今日の結果</a>
+    </div>
+</section>
+{% endblock %}

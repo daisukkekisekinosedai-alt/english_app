@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}10問クイズ結果 - English Pocket{% endblock %}
+
+{% block content %}
+<section class="result-card {% if is_correct %}correct{% else %}wrong{% endif %}">
+    {% if is_correct %}
+        <p class="result-mark">正解！</p>
+    {% else %}
+        <p class="result-mark">不正解...</p>
+    {% endif %}
+
+    {% set reaction_cat = 'images/cats/cat-neutral.png' if is_correct else 'images/cats/cat-sad.png' %}
+    <div class="cat-reaction-panel {% if is_correct %}cat-correct{% else %}cat-wrong{% endif %}">
+        <img src="{{ url_for('static', filename=reaction_cat) }}" alt="{% if is_correct %}正解を喜ぶ子猫{% else %}不正解で悲しそうな子猫{% endif %}">
+        <div>
+            {% if is_correct %}
+                <strong>やった、正解にゃ。</strong>
+                <p>この調子で語彙力をもふもふ育てよう。</p>
+            {% else %}
+                <strong>惜しいにゃ…。</strong>
+                <p>でもミスった単語は伸びしろ。次で回収しよう。</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <h1>{{ word["english"] }}</h1>
+    <button class="speak-button big" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}">🔊 発音</button>
+
+    <div class="answer-box">
+        <p><span>あなたの回答</span>{{ user_answer }}</p>
+        <p><span>正解</span>{{ word["japanese"] }}</p>
+    </div>
+
+    <p class="lead small-lead">現在：{{ data.correct }} / {{ data.index }} 正解</p>
+
+    <div class="hero-actions">
+        {% if is_finished %}
+            <a class="button primary" href="{{ url_for('session_finish') }}">最終結果を見る</a>
+        {% else %}
+            <a class="button primary" href="{{ url_for('session_quiz') }}">次の問題</a>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

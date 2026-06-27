@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}API - English Pocket{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p class="eyebrow">API</p>
+    <h1>API一覧</h1>
+    <p class="lead small-lead">将来、Swift / SwiftUI のiPhoneアプリから呼び出せるようにJSON APIを用意しています。</p>
+
+    <div class="api-list">
+        <code>GET /api/words</code>
+        <code>POST /api/words</code>
+        <code>GET /api/quiz?mode=choice&scope=all</code>
+        <code>GET /api/quiz?mode=choice&scope=weak</code>
+        <code>GET /api/quiz?mode=choice&scope=favorite</code>
+        <code>POST /api/answer</code>
+        <code>GET /api/stats</code>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}ユーザー登録 - English Pocket{% endblock %}
+{% block content %}
+<section class="auth-card card">
+    <p class="eyebrow">Register</p>
+    <h1>ユーザー登録</h1>
+    {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+    <form method="POST" enctype="multipart/form-data" class="form">
+        <label>ユーザー名<input type="text" name="username" required placeholder="daisuke"></label>
+        <label>表示名<input type="text" name="display_name" placeholder="だいすけ"></label>
+        <label>パスワード<input type="password" name="password" required></label>
+        <label>パスワード確認<input type="password" name="password_confirm" required></label>
+        <label>アイコン画像<input type="file" name="icon" accept="image/*"></label>
+        <button class="button primary" type="submit">登録する</button>
+    </form>
+    <p class="muted">登録済みなら <a href="{{ url_for('login') }}">ログイン</a></p>
+</section>
+{% endblock %}
