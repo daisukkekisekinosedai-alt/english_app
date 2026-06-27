@@ -27,6 +27,8 @@
             <p class="profile-userline">@{{ user["username"] }} / {{ game.title }}</p>
 
             <div class="profile-quick-badges">
+                {% if is_master %}<span>🔐 Master account</span>{% endif %}
+                <span>🐱 {{ cat_type_label(user['cat_type']) }}</span>
                 <span>⚡ {{ game.exp }} EXP</span>
                 <span>🔥 {{ streak.current }}日連続</span>
                 <span>🏅 {{ unlocked_badges|length }}個解放</span>
@@ -146,6 +148,25 @@
         </label>
 
         <label>
+            相棒ねこの種類
+            <select name="cat_type">
+                {% for cat in cat_types %}
+                    <option value="{{ cat.key }}" {% if user['cat_type'] == cat.key %}selected{% endif %}>{{ cat.name }} - {{ cat.description }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <div class="cat-select-grid">
+            {% for cat in cat_types %}
+                <div class="cat-select-card {% if user['cat_type'] == cat.key %}selected{% endif %}">
+                    <img src="{{ url_for('static', filename=cat.preview) }}" alt="{{ cat.name }}">
+                    <strong>{{ cat.name }}</strong>
+                    <span>{{ cat.description }}</span>
+                </div>
+            {% endfor %}
+        </div>
+
+        <label>
             新しいパスワード
             <input type="password" name="new_password" placeholder="変更しないなら空欄">
         </label>
@@ -161,6 +182,7 @@
     <div class="hero-actions">
         <a class="button secondary" href="{{ url_for('dashboard') }}">学習記録</a>
         <a class="button secondary" href="{{ url_for('review') }}">復習モード</a>
+        {% if is_master %}<a class="button secondary" href="{{ url_for('admin_users') }}">master管理</a>{% endif %}
         <a class="button danger" href="{{ url_for('logout') }}">ログアウト</a>
     </div>
 </section>

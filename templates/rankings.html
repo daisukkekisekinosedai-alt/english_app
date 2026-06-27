@@ -10,7 +10,7 @@
         <p class="lead small-lead">正解数・正答率・レベル・ストリークを見やすくまとめました。</p>
     </div>
 
-    <img class="ranking-hero-cat" src="{{ url_for('static', filename='images/cats/cat-play.png') }}" alt="ランキングを応援する子猫">
+    <img class="ranking-hero-cat" src="{{ url_for('static', filename=cat_image('home')) }}" alt="ランキングを応援する子猫">
 </section>
 
 <section class="ranking-tabs card">
@@ -114,7 +114,7 @@
     </section>
 {% else %}
     <section class="empty-card ranking-empty">
-        <img src="{{ url_for('static', filename='images/cats/cat-sleepy.png') }}" alt="まだランキングがない子猫">
+        <img src="{{ url_for('static', filename=cat_image('listen')) }}" alt="まだランキングがない子猫">
         <h2>まだランキングがありません</h2>
         <p>クイズを解くと、ここにユーザー別のランキングが表示されます。</p>
         <div class="hero-actions">

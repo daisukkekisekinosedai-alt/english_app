@@ -3,21 +3,33 @@
 {% block title %}10問クイズ完了 - English Pocket{% endblock %}
 
 {% block content %}
-<section class="result-card correct">
+<section class="result-card correct {% if accuracy >= 80 %}celebration-card{% endif %}">
+    {% if accuracy >= 80 %}
+    <div class="celebration-effect" aria-hidden="true">
+        {% for n in range(24) %}
+            <span style="--i: {{ n }};">{% if n % 4 == 0 %}🎉{% elif n % 4 == 1 %}💖{% elif n % 4 == 2 %}⭐{% else %}🐾{% endif %}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
     <p class="eyebrow">Finished</p>
+    {% if accuracy == 100 %}
+        <p class="result-mark celebration-title">満点！すごい！</p>
+    {% elif accuracy >= 80 %}
+        <p class="result-mark celebration-title">ナイス完走！</p>
+    {% endif %}
     <h1>結果発表</h1>
 
     <div class="score-big">{{ data.correct }} / {{ data.total }}</div>
     <p class="lead">正答率 {{ accuracy }}%</p>
 
     {% if accuracy >= 90 %}
-        {% set finish_cat = 'images/cats/cat-play.png' %}
+        {% set finish_cat = cat_image('finish_good') %}
         {% set finish_message = 'ほぼ完璧。猫もテンション上がってます。' %}
     {% elif accuracy >= 60 %}
-        {% set finish_cat = 'images/cats/cat-rest.png' %}
+        {% set finish_cat = cat_image('finish_ok') %}
         {% set finish_message = 'いい感じ。休みながらもう一周いけます。' %}
     {% else %}
-        {% set finish_cat = 'images/cats/cat-sad.png' %}
+        {% set finish_cat = cat_image('finish_low') %}
         {% set finish_message = '今日は伸びしろ回。苦手を拾えば一気に強くなります。' %}
     {% endif %}
 

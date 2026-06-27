@@ -8,18 +8,18 @@
         <p class="eyebrow">Word list</p>
         <h1>単語一覧</h1>
     </div>
-    <a class="button primary small" href="{{ url_for('add_word') }}">追加</a>
+    {% if is_master %}<a class="button primary small" href="{{ url_for('add_word') }}">追加</a>{% endif %}
 </div>
 
 <section class="card mini-card shared-word-note">
     <p class="muted">
-        単語データは全ユーザー共通です。誰かが追加した単語は別ユーザーでも使えます。お気に入り・テスト結果・苦手単語はログイン中のユーザー専用です。
+        単語データは全ユーザー共通です。単語の追加・編集・削除はmasterアカウントのみ可能です。お気に入り・テスト結果・苦手単語はログイン中のユーザー専用です。
     </p>
     {% if added or skipped %}
         <p class="muted">追加: {{ added or 0 }}件 / 重複スキップ: {{ skipped or 0 }}件</p>
     {% endif %}
-    {% if request.args.get("error") == "not_owner" %}
-        <p class="muted">この単語は別ユーザーが追加したため削除できません。</p>
+    {% if request.args.get("error") == "no_words" %}
+        <p class="muted">まだ単語がありません。masterアカウントでCSVインポートしてください。</p>
     {% endif %}
 </section>
 
@@ -44,7 +44,7 @@
     </form>
 
     <div class="toolbar">
-        <a class="button secondary small" href="{{ url_for('import_words') }}">CSV取込</a>
+        {% if is_master %}<a class="button secondary small" href="{{ url_for('import_words') }}">CSV取込</a>{% endif %}
         <a class="button secondary small" href="{{ url_for('export_words') }}">CSV出力</a>
     </div>
 </section>
@@ -66,11 +66,6 @@
                         {% endif %}
                         <span class="tag">{{ word["category"] }}</span>
                         <span class="tag">Lv.{{ word["level"] }}</span>
-                        {% if word["created_by_name"] %}
-                            <span class="tag">追加者: {{ word["created_by_name"] }}</span>
-                        {% else %}
-                            <span class="tag">追加者: 旧データ</span>
-                        {% endif %}
                     </div>
                     {% if word["audio_file"] %}
                         <audio controls preload="none" src="{{ url_for('static', filename=word['audio_file']) }}"></audio>
@@ -92,7 +87,7 @@
                     {% endif %}
                 </div>
                 <div class="word-actions">
-                    {% if not word["audio_file"] %}
+                    {% if is_master and not word["audio_file"] %}
                         <form method="POST" action="{{ url_for('generate_word_audio', word_id=word['id']) }}">
                             <input type="hidden" name="target" value="word">
                             <button class="button primary small" type="submit" name="prefer" value="gtts">音声生成</button>
@@ -101,11 +96,11 @@
                     <form method="POST" action="{{ url_for('toggle_favorite', word_id=word['id']) }}">
                         <button class="button ghost small" type="submit">{% if word["favorite"] %}★解除{% else %}☆追加{% endif %}</button>
                     </form>
+                    {% if is_master %}
                     <a class="button secondary small" href="{{ url_for('edit_word', word_id=word['id']) }}">編集</a>
-                    {% if not word["created_by_user_id"] or word["created_by_user_id"] == current_user["id"] %}
-                        <form method="POST" action="{{ url_for('delete_word', word_id=word['id']) }}" onsubmit="return confirm('この単語を削除しますか？');">
-                            <button class="button danger small" type="submit">削除</button>
-                        </form>
+                    <form method="POST" action="{{ url_for('delete_word', word_id=word['id']) }}" onsubmit="return confirm('この単語を削除しますか？');">
+                        <button class="button danger small" type="submit">削除</button>
+                    </form>
                     {% endif %}
                 </div>
             </article>
@@ -115,7 +110,7 @@
     <section class="empty-card">
         <h2>条件に合う単語がありません</h2>
         <p>検索条件を変えるか、新しい単語を追加してみましょう。</p>
-        <a class="button primary" href="{{ url_for('add_word') }}">単語を追加する</a>
+        {% if is_master %}<a class="button primary" href="{{ url_for('add_word') }}">単語を追加する</a>{% endif %}
     </section>
 {% endif %}
 {% endblock %}

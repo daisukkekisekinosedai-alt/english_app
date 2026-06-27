@@ -53,6 +53,78 @@ EDGE_VOICES = [
 ]
 
 
+MASTER_USERNAME = os.environ.get("MASTER_USERNAME", "master").strip().lower()
+MASTER_PASSWORD = os.environ.get("MASTER_PASSWORD", "giants")
+
+CAT_TYPES = [
+    {"key": "milk", "name": "ミルクねこ", "description": "いちばん標準。やさしく見守る相棒。", "preview": "images/cats/cat-neutral.png"},
+    {"key": "playful", "name": "あそびねこ", "description": "元気系。正解した時にテンション高め。", "preview": "images/cats/cat-play.png"},
+    {"key": "relax", "name": "まったりねこ", "description": "落ち着いた癒し系。休憩しながら学習。", "preview": "images/cats/cat-rest.png"},
+    {"key": "sleepy", "name": "ねむねこ", "description": "ゆるい眠そうな猫。リスニングのお供に。", "preview": "images/cats/cat-sleepy.png"},
+    {"key": "study", "name": "勉強ねこ", "description": "一緒に単語帳を開く勉強モード。", "preview": "images/cats/cat-study.png"},
+]
+
+CAT_TYPE_LABELS = {item["key"]: item["name"] for item in CAT_TYPES}
+
+CAT_STATE_MAP = {
+    "milk": {
+        "home": "images/cats/cat-play.png",
+        "neutral": "images/cats/cat-neutral.png",
+        "quiz": "images/cats/cat-neutral.png",
+        "listen": "images/cats/cat-sleepy.png",
+        "correct": "images/cats/cat-play.png",
+        "wrong": "images/cats/cat-sad.png",
+        "finish_good": "images/cats/cat-play.png",
+        "finish_ok": "images/cats/cat-rest.png",
+        "finish_low": "images/cats/cat-sad.png",
+    },
+    "playful": {
+        "home": "images/cats/cat-play.png",
+        "neutral": "images/cats/cat-play.png",
+        "quiz": "images/cats/cat-play.png",
+        "listen": "images/cats/cat-neutral.png",
+        "correct": "images/cats/cat-play.png",
+        "wrong": "images/cats/cat-sad.png",
+        "finish_good": "images/cats/cat-play.png",
+        "finish_ok": "images/cats/cat-neutral.png",
+        "finish_low": "images/cats/cat-sad.png",
+    },
+    "relax": {
+        "home": "images/cats/cat-rest.png",
+        "neutral": "images/cats/cat-rest.png",
+        "quiz": "images/cats/cat-neutral.png",
+        "listen": "images/cats/cat-sleepy.png",
+        "correct": "images/cats/cat-neutral.png",
+        "wrong": "images/cats/cat-sad.png",
+        "finish_good": "images/cats/cat-play.png",
+        "finish_ok": "images/cats/cat-rest.png",
+        "finish_low": "images/cats/cat-sad.png",
+    },
+    "sleepy": {
+        "home": "images/cats/cat-sleepy.png",
+        "neutral": "images/cats/cat-sleepy.png",
+        "quiz": "images/cats/cat-rest.png",
+        "listen": "images/cats/cat-sleepy.png",
+        "correct": "images/cats/cat-neutral.png",
+        "wrong": "images/cats/cat-sad.png",
+        "finish_good": "images/cats/cat-play.png",
+        "finish_ok": "images/cats/cat-sleepy.png",
+        "finish_low": "images/cats/cat-sad.png",
+    },
+    "study": {
+        "home": "images/cats/cat-study.png",
+        "neutral": "images/cats/cat-study.png",
+        "quiz": "images/cats/cat-study.png",
+        "listen": "images/cats/cat-neutral.png",
+        "correct": "images/cats/cat-play.png",
+        "wrong": "images/cats/cat-sad.png",
+        "finish_good": "images/cats/cat-play.png",
+        "finish_ok": "images/cats/cat-study.png",
+        "finish_low": "images/cats/cat-sad.png",
+    },
+}
+
+
 SAMPLE_WORDS = [
     ("apple", "りんご", "I ate an apple this morning.", "まずは定番の単語", "日常", 1),
     ("important", "重要な", "This meeting is important.", "仕事でもよく使う", "仕事", 2),
@@ -143,6 +215,8 @@ def init_db() -> None:
             display_name TEXT NOT NULL,
             password_hash TEXT NOT NULL,
             icon_file TEXT DEFAULT '',
+            role TEXT DEFAULT 'user',
+            cat_type TEXT DEFAULT 'milk',
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
@@ -237,6 +311,40 @@ def init_db() -> None:
     ensure_column(conn, "users", "display_name", "display_name TEXT DEFAULT ''")
     ensure_column(conn, "users", "icon_file", "icon_file TEXT DEFAULT ''")
     ensure_column(conn, "users", "updated_at", f"updated_at TEXT DEFAULT '{now_text()}'")
+
+    ensure_column(conn, "users", "role", "role TEXT DEFAULT 'user'")
+    ensure_column(conn, "users", "cat_type", "cat_type TEXT DEFAULT 'milk'")
+
+    # masterユーザー設定:
+    # masterアカウントは固定で username=master / password=giants を自動作成します。
+    # 最初に登録した通常ユーザーをmasterにする方式は使いません。
+    master_hash = generate_password_hash(MASTER_PASSWORD)
+    existing_master = conn.execute("SELECT id FROM users WHERE lower(username) = ?", (MASTER_USERNAME,)).fetchone()
+    if existing_master:
+        conn.execute(
+            """
+            UPDATE users
+            SET display_name = 'master',
+                password_hash = ?,
+                role = 'master',
+                cat_type = COALESCE(NULLIF(cat_type, ''), 'study'),
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (master_hash, now_text(), existing_master["id"]),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO users (username, display_name, password_hash, role, cat_type, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (MASTER_USERNAME, "master", master_hash, "master", "study", now_text(), now_text()),
+        )
+
+    # master以外は通常ユーザーに戻す。
+    conn.execute("UPDATE users SET role = 'user' WHERE lower(username) != ?", (MASTER_USERNAME,))
+
     ensure_column(conn, "test_sessions", "share_text", "share_text TEXT DEFAULT ''")
 
     conn.commit()
@@ -383,12 +491,9 @@ def prepare_persistent_storage() -> None:
     ローカルではプロジェクト内に保存します。
     Renderでは DATA_DIR=/var/data を指定すると、
     DB・生成音声・アップロード画像を永続ディスク側へ保存できます。
-
-    このアプリでは保存先の定数名は ICON_DIR です。
     """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    # ローカル実行、またはPersistent Diskを使わないRender Free実行の場合
     if DATA_DIR.resolve() == BASE_DIR.resolve():
         AUDIO_DIR.mkdir(parents=True, exist_ok=True)
         ICON_DIR.mkdir(parents=True, exist_ok=True)
@@ -402,8 +507,6 @@ def prepare_persistent_storage() -> None:
     persistent_audio.mkdir(parents=True, exist_ok=True)
     persistent_icons.mkdir(parents=True, exist_ok=True)
 
-    # url_for('static', filename='audio/...') / 'uploads/...' をそのまま使えるように、
-    # static/audio と static/uploads を永続ディスク側へリンクします。
     link_targets = [
         (BASE_DIR / "static" / "audio", persistent_audio),
         (BASE_DIR / "static" / "uploads", persistent_uploads),
@@ -419,13 +522,11 @@ def prepare_persistent_storage() -> None:
                 if link_path.is_dir() and not any(link_path.iterdir()):
                     link_path.rmdir()
                 else:
-                    # 既に中身がある場合は壊さず、そのまま利用します。
                     continue
 
             link_path.parent.mkdir(parents=True, exist_ok=True)
             link_path.symlink_to(target_path, target_is_directory=True)
         except Exception:
-            # symlinkが使えない環境では通常フォルダとして使います。
             link_path.mkdir(parents=True, exist_ok=True)
 
 
@@ -453,9 +554,71 @@ def get_current_user() -> sqlite3.Row | None:
     return get_user(current_user_id())
 
 
+def get_user_role(user: sqlite3.Row | None) -> str:
+    if not user:
+        return ""
+    try:
+        return (user["role"] or "").strip().lower()
+    except Exception:
+        return ""
+
+
+def is_master_user(user: sqlite3.Row | None = None) -> bool:
+    if user is None:
+        user = get_current_user()
+    if not user:
+        return False
+
+    try:
+        username = (user["username"] or "").strip().lower()
+    except Exception:
+        username = ""
+
+    return get_user_role(user) == "master" or username == MASTER_USERNAME
+
+
+def master_required(view_func):
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        if current_user_id() is None:
+            return redirect(url_for("login", next=request.path))
+        if not is_master_user():
+            return render_template("permission_denied.html"), 403
+        return view_func(*args, **kwargs)
+    return wrapped
+
+
+def get_cat_type_key(user: sqlite3.Row | None = None) -> str:
+    if user is None:
+        user = get_current_user()
+    if not user:
+        return "milk"
+    try:
+        key = (user["cat_type"] or "milk").strip()
+    except Exception:
+        key = "milk"
+    return key if key in CAT_STATE_MAP else "milk"
+
+
+def cat_type_label(key: str | None) -> str:
+    return CAT_TYPE_LABELS.get(key or "milk", CAT_TYPE_LABELS["milk"])
+
+
+def cat_image(state: str = "neutral") -> str:
+    key = get_cat_type_key()
+    return CAT_STATE_MAP.get(key, CAT_STATE_MAP["milk"]).get(state, CAT_STATE_MAP["milk"]["neutral"])
+
+
 @app.context_processor
 def inject_current_user():
-    return {"current_user": get_current_user()}
+    user = get_current_user()
+    return {
+        "current_user": user,
+        "is_master": is_master_user(user),
+        "cat_types": CAT_TYPES,
+        "cat_image": cat_image,
+        "cat_type_label": cat_type_label,
+    }
 
 
 def login_required(view_func):
@@ -1351,6 +1514,10 @@ def register():
             return render_template("register.html", error="パスワードは4文字以上にしてください。")
 
         conn = get_db_connection()
+        role = "master" if username.lower() == MASTER_USERNAME else "user"
+        cat_type = request.form.get("cat_type", "milk").strip()
+        if cat_type not in CAT_STATE_MAP:
+            cat_type = "milk"
         exists = conn.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
         if exists:
             conn.close()
@@ -1358,10 +1525,10 @@ def register():
 
         cursor = conn.execute(
             """
-            INSERT INTO users (username, display_name, password_hash, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO users (username, display_name, password_hash, role, cat_type, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (username, display_name, generate_password_hash(password), now_text(), now_text()),
+            (username, display_name, generate_password_hash(password), role, cat_type, now_text(), now_text()),
         )
         user_id = cursor.lastrowid
         conn.commit()
@@ -1413,19 +1580,22 @@ def profile():
     if request.method == "POST":
         display_name = request.form.get("display_name", "").strip() or user["username"]
         new_password = request.form.get("new_password", "")
+        cat_type = request.form.get("cat_type", "milk").strip()
+        if cat_type not in CAT_STATE_MAP:
+            cat_type = "milk"
 
         icon_file = save_uploaded_icon(request.files.get("icon"), user["id"])
 
         conn = get_db_connection()
         if new_password:
             conn.execute(
-                "UPDATE users SET display_name = ?, password_hash = ?, updated_at = ? WHERE id = ?",
-                (display_name, generate_password_hash(new_password), now_text(), user["id"]),
+                "UPDATE users SET display_name = ?, cat_type = ?, password_hash = ?, updated_at = ? WHERE id = ?",
+                (display_name, cat_type, generate_password_hash(new_password), now_text(), user["id"]),
             )
         else:
             conn.execute(
-                "UPDATE users SET display_name = ?, updated_at = ? WHERE id = ?",
-                (display_name, now_text(), user["id"]),
+                "UPDATE users SET display_name = ?, cat_type = ?, updated_at = ? WHERE id = ?",
+                (display_name, cat_type, now_text(), user["id"]),
             )
         if icon_file:
             conn.execute("UPDATE users SET icon_file = ?, updated_at = ? WHERE id = ?", (icon_file, now_text(), user["id"]))
@@ -1528,7 +1698,7 @@ def add_word():
 
 
 @app.route("/words/<int:word_id>/edit", methods=["GET", "POST"])
-@login_required
+@master_required
 def edit_word(word_id: int):
     word = fetch_word(word_id)
     if word is None:
@@ -1601,16 +1771,11 @@ def toggle_favorite(word_id: int):
 
 
 @app.route("/words/<int:word_id>/delete", methods=["POST"])
-@login_required
+@master_required
 def delete_word(word_id: int):
-    uid = require_user_id()
     word = fetch_word(word_id)
     if word is None:
         return redirect(url_for("words"))
-
-    created_by = word["created_by_user_id"]
-    if created_by is not None and int(created_by) != uid:
-        return redirect(url_for("words", error="not_owner"))
 
     conn = get_db_connection()
     conn.execute("DELETE FROM study_logs WHERE word_id = ?", (word_id,))
@@ -1622,7 +1787,7 @@ def delete_word(word_id: int):
 
 
 @app.route("/seed", methods=["POST"])
-@login_required
+@master_required
 def seed_words():
     conn = get_db_connection()
     added_count = 0
@@ -1657,14 +1822,14 @@ def quiz():
     word = get_random_word(scope=scope)
 
     if word is None:
-        return redirect(url_for("add_word"))
+        return redirect(url_for("words", error="no_words"))
 
     choices = get_choices(word) if mode == "choice" else []
     return render_template("quiz.html", word=word, choices=choices, mode=mode, scope=scope)
 
 
 @app.route("/words/<int:word_id>/generate-audio", methods=["POST"])
-@login_required
+@master_required
 def generate_word_audio(word_id: int):
     word = fetch_word(word_id)
     if word is None:
@@ -1693,7 +1858,7 @@ def generate_word_audio(word_id: int):
 
 
 @app.route("/generate-audio-all", methods=["POST"])
-@login_required
+@master_required
 def generate_audio_all():
     prefer = request.form.get("prefer", "edge")
     voice = request.form.get("voice", DEFAULT_EDGE_VOICE)
@@ -1717,7 +1882,7 @@ def generate_audio_all():
 
 
 @app.route("/tts")
-@login_required
+@master_required
 def tts_page():
     words = fetch_all_words()
     generated_count = sum(1 for word in words if word["audio_file"])
@@ -1739,7 +1904,7 @@ def listen_quiz():
     word = get_random_word(scope=scope)
 
     if word is None:
-        return redirect(url_for("add_word"))
+        return redirect(url_for("words", error="no_words"))
 
     return render_template("listening_quiz.html", word=word, mode="listen", scope=scope)
 
@@ -1904,9 +2069,23 @@ def session_reset():
     return redirect(url_for("index"))
 
 
+
 @app.route("/users")
 @login_required
 def users():
+    # ユーザー一覧は公開しない。人が増えた時の心理的ハードルを下げるため、通常ユーザーには見せません。
+    return redirect(url_for("rankings"))
+
+
+@app.route("/admin")
+@master_required
+def admin_home():
+    return redirect(url_for("admin_users"))
+
+
+@app.route("/admin/users")
+@master_required
+def admin_users():
     conn = get_db_connection()
     rows = conn.execute(
         """
@@ -1915,23 +2094,144 @@ def users():
             u.username,
             u.display_name,
             u.icon_file,
+            u.role,
+            u.cat_type,
             u.created_at,
-            COUNT(DISTINCT w.id) AS added_words,
-            COUNT(l.id) AS total_answers,
+            COUNT(DISTINCT l.id) AS total_answers,
             SUM(CASE WHEN l.is_correct = 1 THEN 1 ELSE 0 END) AS correct_answers,
-            CASE
-                WHEN COUNT(l.id) = 0 THEN 0
-                ELSE ROUND(100.0 * SUM(CASE WHEN l.is_correct = 1 THEN 1 ELSE 0 END) / COUNT(l.id), 1)
-            END AS accuracy
+            COUNT(DISTINCT f.id) AS favorite_count
         FROM users u
-        LEFT JOIN words w ON w.created_by_user_id = u.id
         LEFT JOIN study_logs l ON l.user_id = u.id
+        LEFT JOIN user_word_flags f ON f.user_id = u.id AND f.favorite = 1
         GROUP BY u.id
-        ORDER BY total_answers DESC, correct_answers DESC, u.id DESC
+        ORDER BY
+            CASE WHEN u.role = 'master' THEN 0 ELSE 1 END,
+            u.id ASC
         """
     ).fetchall()
     conn.close()
-    return render_template("users.html", users=rows)
+    return render_template("admin_users.html", users=rows)
+
+
+@app.route("/admin/users/<int:user_id>/delete", methods=["POST"])
+@master_required
+def admin_delete_user(user_id: int):
+    current_id = require_user_id()
+    if user_id == current_id:
+        return redirect(url_for("admin_users", error="self"))
+
+    conn = get_db_connection()
+    target = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    if target is None:
+        conn.close()
+        return redirect(url_for("admin_users", error="not_found"))
+
+    conn.execute("DELETE FROM test_sessions WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM study_logs WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM user_word_flags WHERE user_id = ?", (user_id,))
+    conn.execute("UPDATE words SET created_by_user_id = NULL WHERE created_by_user_id = ?", (user_id,))
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("admin_users", deleted="1"))
+
+
+@app.route("/admin/words")
+@master_required
+def admin_words():
+    conn = get_db_connection()
+    total_words = conn.execute("SELECT COUNT(*) AS count FROM words").fetchone()["count"]
+    categories = conn.execute(
+        """
+        SELECT COALESCE(NULLIF(category, ''), '未分類') AS category, COUNT(*) AS count
+        FROM words
+        GROUP BY COALESCE(NULLIF(category, ''), '未分類')
+        ORDER BY count DESC, category ASC
+        """
+    ).fetchall()
+    recent_words = conn.execute(
+        """
+        SELECT id, english, japanese, category, level
+        FROM words
+        ORDER BY id DESC
+        LIMIT 300
+        """
+    ).fetchall()
+    conn.close()
+    return render_template(
+        "admin_words.html",
+        total_words=total_words,
+        categories=categories,
+        words=recent_words,
+    )
+
+
+def delete_words_by_ids(word_ids: list[int]) -> int:
+    clean_ids = []
+    for word_id in word_ids:
+        try:
+            clean_ids.append(int(word_id))
+        except Exception:
+            pass
+    clean_ids = sorted(set(clean_ids))
+
+    if not clean_ids:
+        return 0
+
+    placeholders = ",".join(["?"] * len(clean_ids))
+    conn = get_db_connection()
+    conn.execute(f"DELETE FROM study_logs WHERE word_id IN ({placeholders})", clean_ids)
+    conn.execute(f"DELETE FROM user_word_flags WHERE word_id IN ({placeholders})", clean_ids)
+    conn.execute(f"DELETE FROM words WHERE id IN ({placeholders})", clean_ids)
+    conn.commit()
+    conn.close()
+    return len(clean_ids)
+
+
+@app.route("/admin/words/delete-selected", methods=["POST"])
+@master_required
+def admin_delete_selected_words():
+    ids = request.form.getlist("word_ids")
+    deleted_count = delete_words_by_ids(ids)
+    return redirect(url_for("admin_words", deleted=deleted_count))
+
+
+@app.route("/admin/words/delete-category", methods=["POST"])
+@master_required
+def admin_delete_words_by_category():
+    category = request.form.get("category", "").strip()
+    confirm = request.form.get("confirm_category", "").strip()
+
+    if not category or confirm != category:
+        return redirect(url_for("admin_words", error="category_confirm"))
+
+    conn = get_db_connection()
+    if category == "未分類":
+        rows = conn.execute("SELECT id FROM words WHERE category IS NULL OR category = ''").fetchall()
+    else:
+        rows = conn.execute("SELECT id FROM words WHERE category = ?", (category,)).fetchall()
+    conn.close()
+
+    deleted_count = delete_words_by_ids([row["id"] for row in rows])
+    return redirect(url_for("admin_words", deleted=deleted_count))
+
+
+@app.route("/admin/words/delete-all", methods=["POST"])
+@master_required
+def admin_delete_all_words():
+    confirm = request.form.get("confirm_text", "").strip()
+
+    if confirm != "DELETE":
+        return redirect(url_for("admin_words", error="confirm"))
+
+    conn = get_db_connection()
+    conn.execute("DELETE FROM study_logs")
+    conn.execute("DELETE FROM user_word_flags")
+    conn.execute("DELETE FROM words")
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("admin_words", deleted_all="1"))
 
 
 @app.route("/rankings")
@@ -2077,7 +2377,7 @@ def weak():
 
 
 @app.route("/import", methods=["GET", "POST"])
-@login_required
+@master_required
 def import_words():
     if request.method == "POST":
         uploaded_file = request.files.get("csv_file")

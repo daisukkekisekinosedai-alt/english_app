@@ -45,6 +45,7 @@
         <a href="{{ url_for('index') }}">🏠<span>ホーム</span></a>
         <a href="{{ url_for('session_start', mode='choice', scope='all', count=10) }}">📝<span>10問</span></a>
         <a href="{{ url_for('rankings') }}">🏆<span>順位</span></a>
+        {% if is_master %}<a href="{{ url_for('admin_users') }}">🔐<span>管理</span></a>{% endif %}
         <a href="{{ url_for('share_today') }}">💌<span>共有</span></a>
         <a href="{{ url_for('profile') }}">🐾<span>自分</span></a>
     </nav>

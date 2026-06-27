@@ -10,7 +10,7 @@
         <p class="result-mark">不正解...</p>
     {% endif %}
 
-    {% set reaction_cat = 'images/cats/cat-neutral.png' if is_correct else 'images/cats/cat-sad.png' %}
+    {% set reaction_cat = cat_image('correct') if is_correct else cat_image('wrong') %}
     <div class="cat-reaction-panel {% if is_correct %}cat-correct{% else %}cat-wrong{% endif %}">
         <img src="{{ url_for('static', filename=reaction_cat) }}" alt="{% if is_correct %}正解を喜ぶ子猫{% else %}不正解で悲しそうな子猫{% endif %}">
         <div>

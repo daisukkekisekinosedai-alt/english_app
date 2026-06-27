@@ -4,6 +4,10 @@
 
 {% block content %}
 <section class="quiz-card listening-card">
+    <div class="quiz-cat-companion">
+        <img src="{{ url_for('static', filename=cat_image('listen')) }}" alt="リスニングを見守る子猫">
+        <p>音をよく聞いていこう。ねこも耳をすませています。</p>
+    </div>
     <p class="eyebrow">Listening quiz</p>
     <h1>音声を聞いて<br>意味を答える</h1>
 
@@ -18,10 +22,12 @@
                 <button class="button primary large-audio" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.9">🔊 再生</button>
                 <button class="button secondary large-audio" type="button" data-speak="{{ word['audio_text'] or word['english'] }}" data-display-text="{{ word['english'] }}" data-rate="0.6">🐢 ゆっくり</button>
             </div>
+            {% if is_master %}
             <form method="POST" action="{{ url_for('generate_word_audio', word_id=word['id']) }}">
                 <input type="hidden" name="target" value="word">
                 <button class="button ghost small" type="submit" name="prefer" value="gtts">mp3を作成</button>
             </form>
+            {% endif %}
         {% endif %}
 
         <details class="hint-box">

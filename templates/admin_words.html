@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}単語一括削除 - English Pocket{% endblock %}
+
+{% block content %}
+<section class="ranking-hero card admin-hero">
+    <div class="ranking-hero-text">
+        <p class="eyebrow">Master only</p>
+        <h1>単語一括削除</h1>
+        <p class="lead small-lead">単語の削除はmaster専用です。削除すると、その単語に紐づく学習履歴・お気に入りも削除されます。</p>
+    </div>
+    <img class="ranking-hero-cat" src="{{ url_for('static', filename=cat_image('study')) }}" alt="単語管理をする子猫">
+</section>
+
+{% if request.args.get("deleted") %}
+<section class="card mini-card success-card">
+    <p class="muted">{{ request.args.get("deleted") }}件の単語を削除しました。</p>
+</section>
+{% endif %}
+
+{% if request.args.get("deleted_all") %}
+<section class="card mini-card success-card">
+    <p class="muted">すべての単語を削除しました。</p>
+</section>
+{% endif %}
+
+{% if request.args.get("error") == "confirm" %}
+<section class="card mini-card warning-card">
+    <p class="muted">全削除するには確認欄に DELETE と入力してください。</p>
+</section>
+{% endif %}
+
+{% if request.args.get("error") == "category_confirm" %}
+<section class="card mini-card warning-card">
+    <p class="muted">カテゴリ削除するには、確認欄にカテゴリ名を完全一致で入力してください。</p>
+</section>
+{% endif %}
+
+<section class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-label">登録単語数</span>
+        <strong>{{ total_words }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">カテゴリ数</span>
+        <strong>{{ categories|length }}</strong>
+    </div>
+</section>
+
+<section class="card admin-panel danger-zone">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Danger zone</p>
+            <h2>すべての単語を削除</h2>
+        </div>
+    </div>
+
+    <p class="muted">全単語、全ユーザーの単語別学習履歴、お気に入りが削除されます。ランキングのテスト履歴自体は残りますが、単語別の復習情報は消えます。</p>
+
+    <form method="POST" action="{{ url_for('admin_delete_all_words') }}" class="form danger-form" onsubmit="return confirm('本当にすべての単語を削除しますか？この操作は戻せません。');">
+        <label>
+            確認入力
+            <input type="text" name="confirm_text" placeholder="DELETE と入力">
+        </label>
+        <button class="button danger" type="submit">すべての単語を削除</button>
+    </form>
+</section>
+
+<section class="card admin-panel">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Category delete</p>
+            <h2>カテゴリごとに削除</h2>
+        </div>
+    </div>
+
+    {% if categories %}
+        <div class="category-delete-list">
+            {% for cat in categories %}
+                <article class="category-delete-row">
+                    <div>
+                        <strong>{{ cat["category"] }}</strong>
+                        <span>{{ cat["count"] }}件</span>
+                    </div>
+                    <form method="POST" action="{{ url_for('admin_delete_words_by_category') }}" onsubmit="return confirm('カテゴリ「{{ cat["category"] }}」の単語を削除しますか？');">
+                        <input type="hidden" name="category" value="{{ cat['category'] }}">
+                        <input type="text" name="confirm_category" placeholder="{{ cat['category'] }}">
+                        <button class="button danger small" type="submit">削除</button>
+                    </form>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">カテゴリはまだありません。</p>
+    {% endif %}
+</section>
+
+<section class="card admin-panel">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Selected delete</p>
+            <h2>最近追加された単語から選択削除</h2>
+        </div>
+        <span class="ranking-count">最大300件表示</span>
+    </div>
+
+    {% if words %}
+        <form method="POST" action="{{ url_for('admin_delete_selected_words') }}" onsubmit="return confirm('選択した単語を削除しますか？');">
+            <div class="bulk-toolbar">
+                <button class="button danger small" type="submit">選択した単語を削除</button>
+                <button class="button secondary small" type="button" onclick="document.querySelectorAll('.bulk-word-check').forEach(c => c.checked = true)">全選択</button>
+                <button class="button secondary small" type="button" onclick="document.querySelectorAll('.bulk-word-check').forEach(c => c.checked = false)">解除</button>
+            </div>
+
+            <div class="bulk-word-list">
+                {% for word in words %}
+                    <label class="bulk-word-row">
+                        <input class="bulk-word-check" type="checkbox" name="word_ids" value="{{ word['id'] }}">
+                        <div>
+                            <strong>{{ word["english"] }}</strong>
+                            <span>{{ word["japanese"] }}</span>
+                            <small>{{ word["category"] or "未分類" }} / Lv.{{ word["level"] }}</small>
+                        </div>
+                    </label>
+                {% endfor %}
+            </div>
+        </form>
+    {% else %}
+        <p class="muted">単語はまだありません。</p>
+    {% endif %}
+</section>
+
+<section class="card mini-card">
+    <div class="hero-actions">
+        <a class="button secondary" href="{{ url_for('admin_users') }}">ユーザー管理へ</a>
+        <a class="button secondary" href="{{ url_for('words') }}">単語一覧へ</a>
+        <a class="button primary" href="{{ url_for('import_words') }}">CSVインポート</a>
+    </div>
+</section>
+{% endblock %}

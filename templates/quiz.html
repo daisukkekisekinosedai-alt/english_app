@@ -5,7 +5,7 @@
 {% block content %}
 <section class="quiz-card">
     <div class="quiz-cat-companion">
-        <img src="{{ url_for('static', filename='images/cats/cat-neutral.png') }}" alt="こちらを見る子猫">
+        <img src="{{ url_for('static', filename=cat_image('quiz')) }}" alt="こちらを見る子猫">
         <p>落ち着いていこう。ねこも見守っています。</p>
     </div>
     <p class="eyebrow">{% if mode == "input" %}Input quiz{% else %}Choice quiz{% endif %}</p>

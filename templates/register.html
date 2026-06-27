@@ -10,6 +10,14 @@
         <label>表示名<input type="text" name="display_name" placeholder="だいすけ"></label>
         <label>パスワード<input type="password" name="password" required></label>
         <label>パスワード確認<input type="password" name="password_confirm" required></label>
+        <label>
+            相棒ねこ
+            <select name="cat_type">
+                {% for cat in cat_types %}
+                    <option value="{{ cat.key }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
         <label>アイコン画像<input type="file" name="icon" accept="image/*"></label>
         <button class="button primary" type="submit">登録する</button>
     </form>

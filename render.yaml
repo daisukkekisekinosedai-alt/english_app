@@ -15,6 +15,10 @@ services:
         value: /var/data/english.db
       - key: SECRET_KEY
         generateValue: true
+      - key: MASTER_USERNAME
+        value: master
+      - key: MASTER_PASSWORD
+        value: giants
     disk:
       name: english-pocket-data
       mountPath: /var/data

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}権限がありません - English Pocket{% endblock %}
+{% block content %}
+<section class="empty-card">
+    <img class="permission-cat" src="{{ url_for('static', filename=cat_image('wrong')) }}" alt="困った子猫">
+    <h1>master専用です</h1>
+    <p>単語の追加・編集・削除、CSVインポート、音声ファイル管理はmasterアカウントだけが使えます。</p>
+    <div class="hero-actions">
+        <a class="button primary" href="{{ url_for('index') }}">ホームへ</a>
+        <a class="button secondary" href="{{ url_for('words') }}">単語一覧へ</a>
+    </div>
+</section>
+{% endblock %}
