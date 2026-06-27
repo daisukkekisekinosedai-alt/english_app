@@ -96,7 +96,10 @@
                 <div>
                     <p class="eyebrow">{{ slot_label }}</p>
                     {% if equipped %}
-                        <h3>{{ equipped.emoji }} {{ equipped.name }}</h3>
+                        <div class="outfit-title-with-preview">
+                            <span class="closet-mini-preview premium-accessory premium-{{ equipped.key }}"><span class="acc-core"></span></span>
+                            <h3>{{ equipped.name }}</h3>
+                        </div>
                         <p>{{ equipped.description }}</p>
                     {% else %}
                         <h3>まだ未装備</h3>
@@ -148,7 +151,7 @@
         <div>
             <p class="eyebrow">Dress up</p>
             <h2>にゃんクローゼット</h2>
-            <p class="muted">学習実績で解放されたアイテムを、今すぐ相棒に着せられます。</p>
+            <p class="muted">学習実績で解放されたアクセサリを、相棒に自然に重ねて着せ替えできます。</p>
         </div>
         <span class="ranking-count">{{ closet_summary.unlocked_count }}種解放</span>
     </div>
@@ -157,7 +160,9 @@
         {% for item in closet_items %}
             <article class="closet-item-card theme-{{ item.theme }} {% if item.equipped %}equipped{% elif item.unlocked %}unlocked{% else %}locked{% endif %}">
                 <div class="closet-item-head">
-                    <div class="closet-item-emoji">{{ item.emoji }}</div>
+                    <div class="closet-item-visual">
+                        <span class="closet-preview premium-accessory premium-{{ item.key }}"><span class="acc-core"></span></span>
+                    </div>
                     <div>
                         <p class="eyebrow">{{ item.slot_label }}</p>
                         <h3>{{ item.name }}</h3>
