@@ -85,7 +85,7 @@
     </div>
     <div class="feature-chip-list">
         {% for feature in enabled_feature_modules %}
-            <a class="feature-chip" href="{{ url_for(feature.route) if feature.route else '#' }}">
+            <a class="feature-chip" href="{{ feature_href(feature.id) }}">
                 <strong>{{ feature.id }}</strong>
                 <span>{{ feature.emoji }} {{ feature.short_name }}</span>
             </a>

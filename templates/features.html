@@ -20,7 +20,7 @@
                 <p>{{ feature.description }}</p>
                 <span class="tag">{% if feature_enabled(feature.id) %}有効{% else %}無効{% endif %}</span>
                 {% if feature_enabled(feature.id) and feature.route %}
-                    <a class="button secondary small" href="{{ url_for(feature.route) }}">開く</a>
+                    <a class="button secondary small" href="{{ feature_href(feature.id) }}">開く</a>
                 {% endif %}
             </div>
         </article>

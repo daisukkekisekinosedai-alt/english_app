@@ -128,6 +128,33 @@ def enabled_feature_modules() -> list[dict]:
     return [item for item in FEATURE_MODULES if item["id"] in enabled]
 
 
+def feature_href(feature_id: int | str) -> str:
+    try:
+        fid = int(feature_id)
+    except Exception:
+        item = FEATURE_MODULE_KEY_MAP.get(str(feature_id))
+        fid = item["id"] if item else 0
+
+    route_map = {
+        1: "smart",
+        2: "focus",
+        3: "plan",
+        4: "exam",
+        5: "mistakes",
+    }
+    endpoint = route_map.get(fid)
+    if not endpoint:
+        return "#"
+    # ミスノートは直接開けるようにする。ナビ表示の有無とURLの到達性を分ける。
+    if fid != 5 and not feature_enabled(fid):
+        return "#"
+    try:
+        return url_for(endpoint)
+    except Exception:
+        return "#"
+
+
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 
@@ -1491,6 +1518,7 @@ def inject_current_user():
         "feature_enabled": feature_enabled,
         "feature_modules": FEATURE_MODULES,
         "enabled_feature_modules": enabled_feature_modules(),
+        "feature_href": feature_href,
     }
 
 
@@ -3600,6 +3628,7 @@ def build_daily_plan(user_id: int) -> dict:
         "phase": phase,
         "goal": goal,
         "smart_plan": smart_plan,
+        "top_words": smart_plan.get("top_words", [])[:5],
         "roadmap": roadmap,
         "level": game.get("level", 1),
         "title": game.get("title", ""),
@@ -3732,6 +3761,23 @@ def smart():
 
 
 
+@app.route("/debug/features")
+@login_required
+def debug_features():
+    return jsonify({
+        "enabled_features": sorted(list(enabled_feature_ids())),
+        "modules": [
+            {
+                "id": item["id"],
+                "key": item["key"],
+                "enabled": feature_enabled(item["id"]),
+            }
+            for item in FEATURE_MODULES
+        ],
+    })
+
+
+
 @app.route("/features")
 @login_required
 def features():
@@ -3770,10 +3816,14 @@ def exam():
 
 
 @app.route("/mistakes")
+@app.route("/mistake")
+@app.route("/miss")
+@app.route("/miss-note")
+@app.route("/mistake-note")
 @login_required
 def mistakes():
-    if not feature_enabled(5):
-        return redirect(url_for("index"))
+    # v17 hotfix2:
+    # ミスノートは学習の中核機能なので、機能フラグ設定に関係なく直接URLでは開けるようにします。
     uid = require_user_id()
     notebook = get_mistake_notebook(uid)
     return render_template("mistakes.html", notebook=notebook)

@@ -49,7 +49,7 @@
         </div>
     </div>
     <div class="smart-word-list compact-smart-list">
-        {% for word in payload.smart_plan.top_words[:5] %}
+        {% for word in payload.top_words %}
             <article class="smart-word-row bucket-{{ word.bucket }}">
                 <div class="smart-score"><strong>{{ word.score }}</strong><span>score</span></div>
                 <div class="smart-word-main">
