@@ -10,7 +10,7 @@
         <p class="lead">ようこそ、{{ current_user["display_name"] }}さん。今日も猫といっしょに、ゆるっと語彙力を育てよう。単語はみんなで共有、成績はあなた専用です。</p>
     </div>
 
-    {% with image_src=url_for('static', filename=cat_image('home')), alt_text='今日の相棒ねこ', shell_class='hero-real-cat-shell', img_class='hero-real-cat' %}{% include "_cat_avatar.html" %}{% endwith %}
+    <img class="hero-real-cat" src="{{ url_for('static', filename=cat_image('home')) }}" alt="ピンクの毛糸で遊ぶ子猫">
 
     <div class="hero-actions">
         <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='all', count=10) }}">🐾 10問連続クイズ</a>
@@ -22,7 +22,7 @@
 
 <section class="card coach-card coach-{{ coach.tone }}">
     <div class="coach-main">
-        {% with image_src=url_for('static', filename=cat_image('quiz')), alt_text='にゃんコーチ', shell_class='coach-cat-shell' %}{% include "_cat_avatar.html" %}{% endwith %}
+        <img src="{{ url_for('static', filename=cat_image('quiz')) }}" alt="にゃんコーチ">
         <div>
             <p class="eyebrow">Nyan Coach</p>
             <h2>{{ coach.title }}</h2>
@@ -38,16 +38,8 @@
     </div>
 </section>
 
-<section class="card cat-room-mini">
-    <div>
-        <p class="eyebrow">Cat room</p>
-        <h2>学習すると猫の部屋が育つにゃ</h2>
-        <p class="muted">10問回答、連続学習、満点などで家具に加えて着せ替えアイテムも増えます。</p>
-    </div>
-    <a class="button primary" href="{{ url_for('cat_room') }}">猫の部屋へ</a>
-</section>
 <section class="cat-mood-strip card cat-home-reaction cat-reaction-{{ home_cat_message.effect }}">
-    {% with image_src=url_for('static', filename=cat_image('neutral')), alt_text='今日の相棒ねこ', shell_class='home-reaction-cat-shell' %}{% include "_cat_avatar.html" %}{% endwith %}
+    <img src="{{ url_for('static', filename=cat_image('neutral')) }}" alt="今日の相棒ねこ">
     <div>
         <p class="eyebrow">Today’s buddy</p>
         <h2>{{ home_cat_message.title }}</h2>

@@ -12,7 +12,7 @@
 
 <section class="card coach-card coach-{{ coach.tone }}">
     <div class="coach-main">
-        {% with image_src=url_for('static', filename=cat_image('quiz')), alt_text='にゃんコーチ', shell_class='coach-cat-shell' %}{% include "_cat_avatar.html" %}{% endwith %}
+        <img src="{{ url_for('static', filename=cat_image('quiz')) }}" alt="にゃんコーチ">
         <div>
             <p class="eyebrow">Nyan Coach</p>
             <h2>{{ coach.title }}</h2>

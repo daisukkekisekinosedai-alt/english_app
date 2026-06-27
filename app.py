@@ -350,32 +350,6 @@ def init_db() -> None:
     ensure_column(conn, "test_sessions", "share_text", "share_text TEXT DEFAULT ''")
 
     backfill_part_of_speech(conn)
-
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS user_cat_inventory (
-            user_id INTEGER NOT NULL,
-            item_key TEXT NOT NULL,
-            unlocked_at TEXT NOT NULL,
-            PRIMARY KEY (user_id, item_key),
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-        """
-    )
-
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS user_cat_equipment (
-            user_id INTEGER NOT NULL,
-            slot TEXT NOT NULL,
-            item_key TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            PRIMARY KEY (user_id, slot),
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-        """
-    )
-
     conn.commit()
     conn.close()
 
@@ -647,7 +621,10 @@ def progress_percent(value: int | float, target: int | float) -> int:
 def get_cat_room_items(stats: dict) -> list[dict]:
     """
     DBを増やさず、既存の学習履歴から猫の部屋アイテム解放を判定します。
+    masterアカウントの場合は家具をすべて解放済みにします。
     """
+    master_room_mode = is_master_user()
+
     total_logs = int(stats.get("total_logs", 0) or 0)
     correct_logs = int(stats.get("correct_logs", 0) or 0)
     favorite_words = int(stats.get("favorite_words", 0) or 0)
@@ -663,98 +640,108 @@ def get_cat_room_items(stats: dict) -> list[dict]:
     raw_items = [
         {
             "key": "cushion",
-            "name": "ふわふわクッション",
+            "name": "プリンセス猫ベッド",
             "emoji": "🛋️",
+            "image": "images/room_items/royal_bed.png",
             "condition": total_logs >= 10,
             "progress": progress_percent(total_logs, 10),
             "requirement": "10問回答で解放",
-            "message": "猫がくつろげる場所をゲット。",
+            "message": "猫が主役になれる、ふかふか王座ベッド。",
             "style": "left: 13%; bottom: 18%;",
         },
         {
             "key": "yarn",
-            "name": "毛糸ボール",
+            "name": "おもちゃチェスト",
             "emoji": "🧶",
+            "image": "images/room_items/toy_chest.png",
             "condition": current_streak >= 3 or longest_streak >= 3,
             "progress": progress_percent(max(current_streak, longest_streak), 3),
             "requirement": "3日連続学習で解放",
-            "message": "続けるほど猫の遊び道具が増えます。",
+            "message": "お気に入りのおもちゃをしまえる高級チェスト。",
             "style": "right: 16%; bottom: 18%;",
         },
         {
             "key": "crown",
-            "name": "満点の王冠",
+            "name": "ハートソファ",
             "emoji": "👑",
+            "image": "images/room_items/heart_sofa.png",
             "condition": perfect_sessions >= 1,
             "progress": progress_percent(perfect_sessions, 1),
             "requirement": "10問満点1回で解放",
-            "message": "満点を取った証。猫、完全に王様です。",
+            "message": "満点を取った猫だけが座れる、ごほうびソファ。",
             "style": "left: 50%; top: 18%;",
         },
         {
             "key": "tower",
-            "name": "キャットタワー",
+            "name": "プリンセスキャットタワー",
             "emoji": "🗼",
+            "image": "images/room_items/princess_tower.png",
             "condition": total_logs >= 100,
             "progress": progress_percent(total_logs, 100),
             "requirement": "100問回答で解放",
-            "message": "学習量が増えると部屋も大きくなります。",
+            "message": "部屋の主役になる、ピンクの豪華キャットタワー。",
             "style": "right: 7%; bottom: 34%;",
         },
         {
             "key": "bookshelf",
-            "name": "英単語の本棚",
+            "name": "クラシックソファ",
             "emoji": "📚",
+            "image": "images/room_items/red_sofa.png",
             "condition": level >= 10,
             "progress": progress_percent(level, 10),
             "requirement": "Lv10で解放",
-            "message": "語彙の積み上げが見える本棚です。",
+            "message": "落ち着いて英単語を眺めるためのクラシックソファ。",
             "style": "left: 7%; bottom: 38%;",
         },
         {
             "key": "trophy",
-            "name": "努力のトロフィー",
+            "name": "星を見る望遠鏡",
             "emoji": "🏆",
+            "image": "images/room_items/telescope.png",
             "condition": total_logs >= 500,
             "progress": progress_percent(total_logs, 500),
             "requirement": "500問回答で解放",
-            "message": "ここまで来たらかなり本物。",
+            "message": "努力の先を見渡すための特別な望遠鏡。",
             "style": "right: 30%; top: 24%;",
         },
         {
             "key": "fish",
-            "name": "お気に入りフィッシュ",
+            "name": "フードステーション",
             "emoji": "🐟",
+            "image": "images/room_items/food_station.png",
             "condition": favorite_words >= 5,
             "progress": progress_percent(favorite_words, 5),
             "requirement": "お気に入り5語で解放",
-            "message": "お気に入り単語を集めると猫のおやつも増えます。",
+            "message": "お気に入り単語のごほうびフードステーション。",
             "style": "left: 29%; bottom: 12%;",
         },
         {
             "key": "ribbon",
-            "name": "正答率リボン",
+            "name": "モンステラ観葉植物",
             "emoji": "🎀",
+            "image": "images/room_items/monstera.png",
             "condition": accuracy >= 80 and total_logs >= 30,
             "progress": min(progress_percent(accuracy, 80), progress_percent(total_logs, 30)),
             "requirement": "30問以上回答かつ正答率80%以上で解放",
-            "message": "ただ解くだけじゃなく、ちゃんと正解している証。",
+            "message": "正答率が育つほど、部屋にも緑が増えます。",
             "style": "right: 42%; top: 12%;",
         },
         {
             "key": "window",
-            "name": "連続学習の窓",
+            "name": "展望ソファ",
             "emoji": "🌙",
+            "image": "images/room_items/red_sofa.png",
             "condition": longest_streak >= 7,
             "progress": progress_percent(longest_streak, 7),
             "requirement": "7日連続学習で解放",
-            "message": "毎日来る人だけが見られる夜景。",
+            "message": "連続学習の景色を眺めるための特等席。",
             "style": "left: 33%; top: 18%;",
         },
         {
             "key": "plant",
             "name": "語彙の観葉植物",
             "emoji": "🌿",
+            "image": "images/room_items/monstera.png",
             "condition": correct_logs >= 100,
             "progress": progress_percent(correct_logs, 100),
             "requirement": "100問正解で解放",
@@ -764,7 +751,12 @@ def get_cat_room_items(stats: dict) -> list[dict]:
     ]
 
     for item in raw_items:
-        item["unlocked"] = bool(item["condition"])
+        if master_room_mode:
+            item["unlocked"] = True
+            item["progress"] = 100
+            item["message"] = item["message"] + " masterなので最初から使用できます。"
+        else:
+            item["unlocked"] = bool(item["condition"])
 
     return raw_items
 
@@ -794,151 +786,6 @@ def get_cat_room_summary(items: list[dict]) -> dict:
         "completion": progress_percent(len(unlocked), len(items)),
     }
 
-
-
-def evaluate_closet_progress(item: dict, stats: dict) -> tuple[bool, int, int, str]:
-    game = stats.get("gamification", {}).get("game", {}) or {}
-    streak = stats.get("gamification", {}).get("streak", {}) or {}
-    value_map = {
-        "total_logs": int(stats.get("total_logs", 0) or 0),
-        "correct_logs": int(stats.get("correct_logs", 0) or 0),
-        "accuracy": float(stats.get("accuracy", 0) or 0),
-        "level": int(game.get("level", 1) or 1),
-        "perfect_sessions": int(game.get("perfect_sessions", 0) or 0),
-        "current_streak": int(streak.get("current", 0) or 0),
-    }
-    metric = item.get("metric", "total_logs")
-    target = int(item.get("target", 1) or 1)
-    current = value_map.get(metric, 0)
-    unlocked = current >= target
-    return unlocked, int(min(current, target) if metric != 'accuracy' else min(current, target)), target, item.get("requirement_label", "")
-
-
-def sync_user_closet_unlocks(user_id: int, stats: dict | None = None) -> list[str]:
-    if stats is None:
-        stats = get_stats(user_id)
-    conn = get_db_connection()
-    unlocked_keys: list[str] = []
-    for item in CLOSET_ITEMS:
-        unlocked, current, target, req = evaluate_closet_progress(item, stats)
-        if unlocked:
-            conn.execute(
-                "INSERT OR IGNORE INTO user_cat_inventory (user_id, item_key, unlocked_at) VALUES (?, ?, ?)",
-                (user_id, item["key"], now_text()),
-            )
-            unlocked_keys.append(item["key"])
-    # remove invalid equipped items no longer existing
-    valid_keys = tuple(CLOSET_ITEM_MAP.keys()) or ('',)
-    conn.execute(
-        f"DELETE FROM user_cat_equipment WHERE item_key NOT IN ({','.join(['?'] * len(valid_keys))})",
-        valid_keys,
-    )
-    conn.commit()
-    conn.close()
-    return unlocked_keys
-
-
-def get_user_unlocked_item_keys(user_id: int, stats: dict | None = None) -> set[str]:
-    sync_user_closet_unlocks(user_id, stats)
-    conn = get_db_connection()
-    rows = conn.execute("SELECT item_key FROM user_cat_inventory WHERE user_id = ?", (user_id,)).fetchall()
-    conn.close()
-    return {row["item_key"] for row in rows}
-
-
-def get_equipped_cat_items(user_id: int | None = None, stats: dict | None = None) -> list[dict]:
-    if user_id is None:
-        user_id = current_user_id()
-    if user_id is None:
-        return []
-    unlocked_keys = get_user_unlocked_item_keys(user_id, stats)
-    conn = get_db_connection()
-    rows = conn.execute(
-        "SELECT slot, item_key FROM user_cat_equipment WHERE user_id = ? ORDER BY slot",
-        (user_id,),
-    ).fetchall()
-    conn.close()
-    items: list[dict] = []
-    for row in rows:
-        item = CLOSET_ITEM_MAP.get(row["item_key"])
-        if item and row["item_key"] in unlocked_keys:
-            data = dict(item)
-            data["slot_label"] = CLOSET_SLOT_LABELS.get(data["slot"], data["slot"])
-            items.append(data)
-    return items
-
-
-def get_equipped_cat_items_by_slot(user_id: int | None = None, stats: dict | None = None) -> dict:
-    return {item["slot"]: item for item in get_equipped_cat_items(user_id, stats)}
-
-
-def get_closet_items(user_id: int, stats: dict) -> list[dict]:
-    unlocked_keys = get_user_unlocked_item_keys(user_id, stats)
-    equipped = get_equipped_cat_items_by_slot(user_id, stats)
-    items: list[dict] = []
-    for item in CLOSET_ITEMS:
-        unlocked, current, target, req = evaluate_closet_progress(item, stats)
-        data = dict(item)
-        data["unlocked"] = item["key"] in unlocked_keys or unlocked
-        data["equipped"] = equipped.get(item["slot"], {}).get("key") == item["key"]
-        data["progress_current"] = current
-        data["progress_target"] = target
-        data["progress"] = progress_percent(current, target)
-        data["slot_label"] = CLOSET_SLOT_LABELS.get(item["slot"], item["slot"])
-        items.append(data)
-    slot_order = {"head": 0, "face": 1, "neck": 2, "back": 3}
-    items.sort(key=lambda x: (slot_order.get(x["slot"], 99), -(1 if x["equipped"] else 0), -(1 if x["unlocked"] else 0), x["name"]))
-    return items
-
-
-def get_closet_summary(items: list[dict]) -> dict:
-    unlocked = [item for item in items if item.get("unlocked")]
-    equipped = [item for item in items if item.get("equipped")]
-    locked = [item for item in items if not item.get("unlocked")]
-    next_item = sorted(locked, key=lambda x: x.get("progress", 0), reverse=True)[0] if locked else None
-    if len(equipped) >= 4:
-        message = "フルコーデ完成にゃ。今日は完全にスター猫です。"
-    elif len(unlocked) >= 6:
-        message = "コーデの選択肢がかなり増えたにゃ。日替わりで着せ替えできる。"
-    elif len(unlocked) >= 3:
-        message = "部屋だけじゃなくて、猫そのものも育ってきたにゃ。"
-    else:
-        message = "まずは10問解いて、最初のアクセサリを解放しよう。"
-    return {
-        "unlocked_count": len(unlocked),
-        "total_count": len(items),
-        "equipped_count": len(equipped),
-        "next_item": next_item,
-        "message": message,
-        "completion": progress_percent(len(unlocked), len(items) or 1),
-    }
-
-
-def equip_closet_item(user_id: int, item_key: str) -> bool:
-    item = CLOSET_ITEM_MAP.get(item_key)
-    if not item:
-        return False
-    unlocked = get_user_unlocked_item_keys(user_id)
-    if item_key not in unlocked:
-        return False
-    conn = get_db_connection()
-    conn.execute("DELETE FROM user_cat_equipment WHERE user_id = ? AND slot = ?", (user_id, item["slot"]))
-    conn.execute(
-        "INSERT INTO user_cat_equipment (user_id, slot, item_key, updated_at) VALUES (?, ?, ?, ?)",
-        (user_id, item["slot"], item_key, now_text()),
-    )
-    conn.commit()
-    conn.close()
-    return True
-
-
-def unequip_closet_slot(user_id: int, slot: str) -> None:
-    if slot not in CLOSET_SLOT_LABELS:
-        return
-    conn = get_db_connection()
-    conn.execute("DELETE FROM user_cat_equipment WHERE user_id = ? AND slot = ?", (user_id, slot))
-    conn.commit()
-    conn.close()
 
 
 def get_weak_category_insight(user_id: int | None) -> dict | None:
@@ -1162,7 +1009,6 @@ def build_session_coach(data: dict, accuracy: float) -> dict:
 @app.context_processor
 def inject_current_user():
     user = get_current_user()
-    equipped_items = get_equipped_cat_items(user["id"]) if user else []
     return {
         "current_user": user,
         "is_master": is_master_user(user),
@@ -1171,8 +1017,6 @@ def inject_current_user():
         "cat_type_label": cat_type_label,
         "part_of_speech_label": part_of_speech_label,
         "part_of_speech_labels": PART_OF_SPEECH_LABELS,
-        "equipped_cat_items": equipped_items,
-        "closet_slot_labels": CLOSET_SLOT_LABELS,
     }
 
 
@@ -1501,129 +1345,6 @@ def get_random_word(scope: str = "all") -> sqlite3.Row | None:
 
     return fetch_word(random.choice(ids))
 
-
-
-CLOSET_SLOT_LABELS = {
-    "head": "あたま",
-    "face": "かお",
-    "neck": "くび",
-    "back": "せなか",
-}
-
-CLOSET_ITEMS = [
-    {
-        "key": "pink_ribbon",
-        "slot": "head",
-        "emoji": "🎀",
-        "name": "ピンクリボン",
-        "description": "王道かわいい。まずはここから。",
-        "requirement_label": "10問回答で解放",
-        "metric": "total_logs",
-        "target": 10,
-        "theme": "cute",
-    },
-    {
-        "key": "gold_crown",
-        "slot": "head",
-        "emoji": "👑",
-        "name": "満点の王冠",
-        "description": "10問満点のごほうび。王者の証。",
-        "requirement_label": "10問満点1回で解放",
-        "metric": "perfect_sessions",
-        "target": 1,
-        "theme": "gold",
-    },
-    {
-        "key": "study_glasses",
-        "slot": "face",
-        "emoji": "👓",
-        "name": "勉強メガネ",
-        "description": "ちょっと賢そう。実際かなり賢い。",
-        "requirement_label": "30問回答で解放",
-        "metric": "total_logs",
-        "target": 30,
-        "theme": "smart",
-    },
-    {
-        "key": "star_monocle",
-        "slot": "face",
-        "emoji": "🧐",
-        "name": "スター片眼鏡",
-        "description": "難単語ハンター向けの顔つきに。",
-        "requirement_label": "正答率85%以上で解放",
-        "metric": "accuracy",
-        "target": 85,
-        "theme": "smart",
-    },
-    {
-        "key": "bell_collar",
-        "slot": "neck",
-        "emoji": "🔔",
-        "name": "ベル付き首輪",
-        "description": "歩くたびに心の中でちりんちりん。",
-        "requirement_label": "20問正解で解放",
-        "metric": "correct_logs",
-        "target": 20,
-        "theme": "cute",
-    },
-    {
-        "key": "bow_tie",
-        "slot": "neck",
-        "emoji": "🎗️",
-        "name": "蝶ネクタイ",
-        "description": "ちょっとフォーマル。ビジネス英語向け。",
-        "requirement_label": "Lv5で解放",
-        "metric": "level",
-        "target": 5,
-        "theme": "party",
-    },
-    {
-        "key": "winter_scarf",
-        "slot": "neck",
-        "emoji": "🧣",
-        "name": "もこもこマフラー",
-        "description": "連続学習を続けた人だけのぬくもり。",
-        "requirement_label": "5日連続学習で解放",
-        "metric": "current_streak",
-        "target": 5,
-        "theme": "soft",
-    },
-    {
-        "key": "angel_wings",
-        "slot": "back",
-        "emoji": "🪽",
-        "name": "にゃん天使の羽",
-        "description": "高レベル到達で背中に祝福。",
-        "requirement_label": "Lv8で解放",
-        "metric": "level",
-        "target": 8,
-        "theme": "dream",
-    },
-    {
-        "key": "hero_cape",
-        "slot": "back",
-        "emoji": "🦸",
-        "name": "ヒーローケープ",
-        "description": "復習も乗り越える語彙ヒーロー仕様。",
-        "requirement_label": "100問回答で解放",
-        "metric": "total_logs",
-        "target": 100,
-        "theme": "hero",
-    },
-    {
-        "key": "champion_medal",
-        "slot": "neck",
-        "emoji": "🏅",
-        "name": "王者メダル",
-        "description": "努力の積み上げが見えるトロフィー。",
-        "requirement_label": "200問正解で解放",
-        "metric": "correct_logs",
-        "target": 200,
-        "theme": "gold",
-    },
-]
-
-CLOSET_ITEM_MAP = {item["key"]: item for item in CLOSET_ITEMS}
 
 
 PART_OF_SPEECH_LABELS = {
@@ -3310,38 +3031,8 @@ def share_session(test_session_id: int):
 @app.route("/cat-room")
 @login_required
 def cat_room():
-    uid = require_user_id()
-    stats = get_stats(uid)
-    items = get_cat_room_items(stats)
-    room_summary = get_cat_room_summary(items)
-    closet_items = get_closet_items(uid, stats)
-    closet_summary = get_closet_summary(closet_items)
-    equipped_items = get_equipped_cat_items(uid, stats)
-    return render_template(
-        "cat_room.html",
-        stats=stats,
-        items=items,
-        room_summary=room_summary,
-        closet_items=closet_items,
-        closet_summary=closet_summary,
-        equipped_items=equipped_items,
-    )
-
-
-@app.route("/cat-room/closet/equip/<item_key>", methods=["POST"])
-@login_required
-def equip_cat_item_route(item_key: str):
-    uid = require_user_id()
-    equip_closet_item(uid, item_key)
-    return redirect(url_for("cat_room"))
-
-
-@app.route("/cat-room/closet/unequip/<slot>", methods=["POST"])
-@login_required
-def unequip_cat_item_route(slot: str):
-    uid = require_user_id()
-    unequip_closet_slot(uid, slot)
-    return redirect(url_for("cat_room"))
+    # v15: 猫の部屋は廃止。古いリンクから来た場合はホームへ戻します。
+    return redirect(url_for("index"))
 
 
 @app.route("/badges")
