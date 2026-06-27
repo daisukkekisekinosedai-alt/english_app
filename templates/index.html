@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}ホーム - English Pocket{% endblock %}
+{% block title %}ホーム - にゃんにゃんイングリッシュ{% endblock %}
 
 {% block content %}
 <section class="hero-card real-cat-hero">
     <div class="real-cat-hero-text">
-        <p class="eyebrow">Pink cat learning app 🐾</p>
+        <p class="eyebrow">Nyan Nyan learning app 🐾</p>
         <h1>英語学習を<br>もっとかわいく。</h1>
         <p class="lead">ようこそ、{{ current_user["display_name"] }}さん。今日も猫といっしょに、ゆるっと語彙力を育てよう。単語はみんなで共有、成績はあなた専用です。</p>
     </div>
@@ -20,6 +20,23 @@
     </div>
 </section>
 
+<section class="card coach-card coach-{{ coach.tone }}">
+    <div class="coach-main">
+        <img src="{{ url_for('static', filename=cat_image('quiz')) }}" alt="にゃんコーチ">
+        <div>
+            <p class="eyebrow">Nyan Coach</p>
+            <h2>{{ coach.title }}</h2>
+            <p>{{ coach.message }}</p>
+            {% if coach.actions %}
+                <div class="hero-actions compact-actions">
+                    {% for action in coach.actions %}
+                        <a class="button secondary" href="{{ url_for(action.endpoint, **action.params) }}">{{ action.label }}</a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
 
 <section class="card cat-room-mini">
     <div>

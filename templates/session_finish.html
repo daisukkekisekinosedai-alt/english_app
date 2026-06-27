@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}10問クイズ完了 - English Pocket{% endblock %}
+{% block title %}10問クイズ完了 - にゃんにゃんイングリッシュ{% endblock %}
 
 {% block content %}
 <section class="result-card correct {% if accuracy >= 80 %}celebration-card{% endif %}">
@@ -32,6 +32,13 @@
                 <small class="reaction-mini">今回の最高連続正解: {{ data.best_streak }} 問</small>
             {% endif %}
         </div>
+    </div>
+
+
+    <div class="session-coach-box coach-{{ session_coach.tone }}">
+        <p class="eyebrow">にゃんコーチの一言</p>
+        <h2>{{ session_coach.title }}</h2>
+        <p>{{ session_coach.message }}</p>
     </div>
 
     <div class="hero-actions">

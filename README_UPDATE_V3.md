@@ -1,4 +1,4 @@
-# English Pocket Update v3
+# にゃんにゃんイングリッシュ Update v3
 
 ユーザー要望対応版です。
 

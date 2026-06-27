@@ -1,4 +1,4 @@
-# English Pocket Real Cat Design v10
+# にゃんにゃんイングリッシュ Real Cat Design v10
 
 ## 変更内容
 

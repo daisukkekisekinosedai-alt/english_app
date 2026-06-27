@@ -1,4 +1,4 @@
-# English Pocket Update v5
+# にゃんにゃんイングリッシュ Update v5
 
 ## 変更内容
 

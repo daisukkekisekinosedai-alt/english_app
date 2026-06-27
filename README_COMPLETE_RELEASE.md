@@ -1,4 +1,4 @@
-# English Pocket Complete Release v2
+# にゃんにゃんイングリッシュ Complete Release v2
 
 最新版の完全版です。
 

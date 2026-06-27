@@ -1,4 +1,4 @@
-# English Pocket Local Plus
+# にゃんにゃんイングリッシュ Local Plus
 
 Flask + SQLite の英語学習アプリです。ローカルで遊ぶ用に機能追加した版です。
 

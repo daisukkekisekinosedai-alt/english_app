@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}学習記録 - English Pocket{% endblock %}
+{% block title %}学習記録 - にゃんにゃんイングリッシュ{% endblock %}
 
 {% block content %}
 <div class="page-title-row">
@@ -9,6 +9,35 @@
         <h1>{{ current_user["display_name"] }}さんの学習記録</h1>
     </div>
 </div>
+
+<section class="card coach-card coach-{{ coach.tone }}">
+    <div class="coach-main">
+        <img src="{{ url_for('static', filename=cat_image('quiz')) }}" alt="にゃんコーチ">
+        <div>
+            <p class="eyebrow">Nyan Coach</p>
+            <h2>{{ coach.title }}</h2>
+            <p>{{ coach.message }}</p>
+            <div class="coach-insights">
+                {% if coach.weak_category %}
+                    <span>苦手カテゴリ候補: {{ coach.weak_category.category }} {{ coach.weak_category.accuracy }}%</span>
+                {% endif %}
+                {% if coach.weak_pos %}
+                    <span>苦手品詞候補: {{ coach.weak_pos.label }} {{ coach.weak_pos.accuracy }}%</span>
+                {% endif %}
+                {% if coach.due_review %}
+                    <span>復習タイミング: {{ coach.due_review }}語</span>
+                {% endif %}
+            </div>
+            {% if coach.actions %}
+                <div class="hero-actions compact-actions">
+                    {% for action in coach.actions %}
+                        <a class="button secondary" href="{{ url_for(action.endpoint, **action.params) }}">{{ action.label }}</a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
 
 <section class="stats-grid">
     <div class="stat-card">

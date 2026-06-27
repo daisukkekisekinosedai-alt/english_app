@@ -770,6 +770,224 @@ def get_cat_room_summary(items: list[dict]) -> dict:
 
 
 
+def get_weak_category_insight(user_id: int | None) -> dict | None:
+    if user_id is None:
+        return None
+
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT
+            COALESCE(NULLIF(w.category, ''), '未分類') AS category,
+            COUNT(l.id) AS total_count,
+            SUM(CASE WHEN l.is_correct = 1 THEN 1 ELSE 0 END) AS correct_count,
+            ROUND(100.0 * SUM(CASE WHEN l.is_correct = 1 THEN 1 ELSE 0 END) / COUNT(l.id), 1) AS accuracy
+        FROM study_logs l
+        JOIN words w ON w.id = l.word_id
+        WHERE l.user_id = ?
+        GROUP BY COALESCE(NULLIF(w.category, ''), '未分類')
+        HAVING total_count >= 3
+        ORDER BY accuracy ASC, total_count DESC
+        LIMIT 1
+        """,
+        (user_id,),
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    return {
+        "category": row["category"],
+        "total_count": row["total_count"],
+        "correct_count": row["correct_count"] or 0,
+        "accuracy": row["accuracy"] or 0,
+    }
+
+
+def get_weak_pos_insight(user_id: int | None) -> dict | None:
+    if user_id is None:
+        return None
+
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT
+            COALESCE(NULLIF(w.part_of_speech, ''), 'other') AS part_of_speech,
+            COUNT(l.id) AS total_count,
+            SUM(CASE WHEN l.is_correct = 1 THEN 1 ELSE 0 END) AS correct_count,
+            ROUND(100.0 * SUM(CASE WHEN l.is_correct = 1 THEN 1 ELSE 0 END) / COUNT(l.id), 1) AS accuracy
+        FROM study_logs l
+        JOIN words w ON w.id = l.word_id
+        WHERE l.user_id = ?
+        GROUP BY COALESCE(NULLIF(w.part_of_speech, ''), 'other')
+        HAVING total_count >= 3
+        ORDER BY accuracy ASC, total_count DESC
+        LIMIT 1
+        """,
+        (user_id,),
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        return None
+
+    return {
+        "part_of_speech": row["part_of_speech"],
+        "label": part_of_speech_label(row["part_of_speech"]),
+        "total_count": row["total_count"],
+        "correct_count": row["correct_count"] or 0,
+        "accuracy": row["accuracy"] or 0,
+    }
+
+
+def get_due_review_count(user_id: int | None) -> int:
+    if user_id is None:
+        return 0
+
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM (
+            SELECT
+                w.id,
+                MAX(l.created_at) AS last_answered_at,
+                SUM(CASE WHEN l.is_correct = 0 THEN 1 ELSE 0 END) AS wrong_count,
+                SUM(CASE WHEN l.is_correct = 1 THEN 1 ELSE 0 END) AS correct_count
+            FROM words w
+            JOIN study_logs l ON l.word_id = w.id
+            WHERE l.user_id = ?
+            GROUP BY w.id
+            HAVING wrong_count > 0
+               AND datetime(last_answered_at) <= datetime('now', '-1 day', 'localtime')
+        )
+        """,
+        (user_id,),
+    ).fetchone()
+    conn.close()
+    return row["count"] if row else 0
+
+
+def build_learning_coach(stats: dict, user_id: int | None = None) -> dict:
+    """
+    にゃんコーチのコメントを作ります。
+    DBに新しいテーブルは作らず、既存の学習履歴から判断します。
+    """
+    uid = user_id if user_id is not None else current_user_id()
+    total = int(stats.get("total_logs", 0) or 0)
+    correct = int(stats.get("correct_logs", 0) or 0)
+    accuracy = float(stats.get("accuracy", 0) or 0)
+    review_stats = stats.get("review_stats", {}) or {}
+    gamification = stats.get("gamification", {}) or {}
+    streak = gamification.get("streak", {}) or {}
+    game = gamification.get("game", {}) or {}
+
+    weak_category = get_weak_category_insight(uid)
+    weak_pos = get_weak_pos_insight(uid)
+    due_review = get_due_review_count(uid)
+
+    actions: list[dict] = []
+
+    if total == 0:
+        title = "まずは10問、にゃんコーチと始めるにゃ"
+        message = "最初は正答率よりも、回答履歴を作ることが大事です。10問解くと、次からあなた専用の弱点コメントが出しやすくなります。"
+        tone = "start"
+        actions.append({"label": "まず10問やる", "endpoint": "session_start", "params": {"mode": "choice", "scope": "all", "count": 10}})
+    elif due_review >= 5:
+        title = "今日は復習回収日だにゃ"
+        message = f"復習タイミングの単語が {due_review} 語あります。新しい単語を増やす前に、昨日以前に間違えた単語を軽く回収すると定着しやすいです。"
+        tone = "review"
+        actions.append({"label": "復習する", "endpoint": "review", "params": {}})
+    elif weak_category and weak_category["accuracy"] < 70:
+        title = f"{weak_category['category']} を少し鍛えたいにゃ"
+        message = f"{weak_category['category']} の正答率が {weak_category['accuracy']}% です。今日はこのカテゴリを意識して、似た意味の単語をまとめて覚えるのがおすすめです。"
+        tone = "weak"
+        actions.append({"label": f"{weak_category['category']}を見る", "endpoint": "words", "params": {"category": weak_category["category"]}})
+    elif weak_pos and weak_pos["accuracy"] < 70:
+        title = f"{weak_pos['label']}で少しミスが出てるにゃ"
+        message = f"{weak_pos['label']}の正答率が {weak_pos['accuracy']}% です。4択は同じ品詞から出るので、意味の細かい違いを確認すると一気に伸びます。"
+        tone = "weak"
+        actions.append({"label": "苦手単語を見る", "endpoint": "weak", "params": {}})
+    elif accuracy >= 90 and total >= 30:
+        title = "かなり強いにゃ、次はスピード勝負"
+        message = f"累計正答率 {accuracy}% はかなり優秀です。次は10問をテンポよく解いて、迷う単語だけ復習に回すと効率が上がります。"
+        tone = "good"
+        actions.append({"label": "10問チャレンジ", "endpoint": "session_start", "params": {"mode": "choice", "scope": "all", "count": 10}})
+    elif accuracy >= 75:
+        title = "いい感じに育ってるにゃ"
+        message = f"正答率 {accuracy}% で安定してきています。今日は苦手単語を少し混ぜると、得点力がもう一段上がります。"
+        tone = "good"
+        actions.append({"label": "苦手10問", "endpoint": "session_start", "params": {"mode": "choice", "scope": "weak", "count": 10}})
+    elif streak.get("current", 0) >= 3:
+        title = f"{streak.get('current')}日連続、継続が強いにゃ"
+        message = "正答率よりもまず継続が勝ちです。今日も10問だけやれば、語彙の土台がちゃんと積み上がります。"
+        tone = "streak"
+        actions.append({"label": "今日の10問", "endpoint": "session_start", "params": {"mode": "choice", "scope": "all", "count": 10}})
+    else:
+        title = "今日は軽く積み上げるにゃ"
+        message = "新しい単語を10問だけ解いて、間違えた単語をあとで復習する流れがおすすめです。小さく続けるのが一番強いです。"
+        tone = "normal"
+        actions.append({"label": "10問解く", "endpoint": "session_start", "params": {"mode": "choice", "scope": "all", "count": 10}})
+
+    # サブ提案は最大2つ
+    if review_stats.get("repeat_wrong", 0):
+        actions.append({"label": "繰り返しミスを見る", "endpoint": "review", "params": {}})
+    elif game.get("level", 1) < 10:
+        actions.append({"label": "Lvを上げる", "endpoint": "session_start", "params": {"mode": "choice", "scope": "all", "count": 10}})
+
+    return {
+        "title": title,
+        "message": message,
+        "tone": tone,
+        "actions": actions[:2],
+        "weak_category": weak_category,
+        "weak_pos": weak_pos,
+        "due_review": due_review,
+    }
+
+
+def build_session_coach(data: dict, accuracy: float) -> dict:
+    total = int(data.get("total", 0) or 0)
+    correct = int(data.get("correct", 0) or 0)
+    best_streak = int(data.get("best_streak", 0) or 0)
+
+    wrong_answers = [a for a in data.get("answers", []) if not a.get("is_correct")]
+    wrong_count = len(wrong_answers)
+    wrong_preview = [a.get("english") for a in wrong_answers[:3] if a.get("english")]
+
+    if accuracy == 100:
+        title = "完璧にゃ。今日は勝ち切ったにゃ"
+        message = "10問満点です。明日は新しい単語を混ぜるか、苦手カテゴリに挑戦するとさらに伸びます。"
+        tone = "perfect"
+    elif accuracy >= 80:
+        title = "かなり良い完走だにゃ"
+        message = f"{correct}/{total} 正解。あと少しで満点です。間違えた単語だけ今のうちに見直すと、次で取り返せます。"
+        tone = "good"
+    elif accuracy >= 60:
+        title = "ここから回収できるにゃ"
+        message = f"{correct}/{total} 正解。今日は覚える単語と怪しい単語が分かれた回です。ミスした単語を3語だけ復習しましょう。"
+        tone = "review"
+    else:
+        title = "今日は伸びしろ発見回だにゃ"
+        message = f"{correct}/{total} 正解。落ち込む回ではなく、復習対象を見つけた回です。次は苦手単語モードで軽く回収しましょう。"
+        tone = "weak"
+
+    if best_streak >= 5:
+        message += f" ちなみに最高 {best_streak} 問連続正解、これはかなり良い流れです。"
+    elif wrong_preview:
+        message += " 要注意単語: " + " / ".join(wrong_preview)
+
+    return {
+        "title": title,
+        "message": message,
+        "tone": tone,
+        "wrong_count": wrong_count,
+        "wrong_preview": wrong_preview,
+    }
+
+
+
 @app.context_processor
 def inject_current_user():
     user = get_current_user()
@@ -2068,7 +2286,8 @@ def healthz():
 def index():
     stats = get_stats()
     home_cat_message = get_home_cat_message(stats)
-    return render_template("index.html", stats=stats, home_cat_message=home_cat_message)
+    coach = build_learning_coach(stats)
+    return render_template("index.html", stats=stats, home_cat_message=home_cat_message, coach=coach)
 
 
 @app.route("/words")
@@ -2534,7 +2753,8 @@ def session_finish():
     conn.close()
 
     finish_reaction = get_cat_reaction(True, streak=data.get("best_streak", 0), finished=True, accuracy=accuracy)
-    return render_template("session_finish.html", data=data, accuracy=accuracy, test_session=test_session, finish_reaction=finish_reaction)
+    session_coach = build_session_coach(data, accuracy)
+    return render_template("session_finish.html", data=data, accuracy=accuracy, test_session=test_session, finish_reaction=finish_reaction, session_coach=session_coach)
 
 
 @app.route("/session/reset")
@@ -2852,7 +3072,8 @@ def share_card():
 @login_required
 def dashboard():
     stats = get_stats()
-    return render_template("dashboard.html", stats=stats)
+    coach = build_learning_coach(stats)
+    return render_template("dashboard.html", stats=stats, coach=coach)
 
 
 @app.route("/weak")
