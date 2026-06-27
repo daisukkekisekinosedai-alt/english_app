@@ -383,12 +383,15 @@ def prepare_persistent_storage() -> None:
     ローカルではプロジェクト内に保存します。
     Renderでは DATA_DIR=/var/data を指定すると、
     DB・生成音声・アップロード画像を永続ディスク側へ保存できます。
+
+    このアプリでは保存先の定数名は ICON_DIR です。
     """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+    # ローカル実行、またはPersistent Diskを使わないRender Free実行の場合
     if DATA_DIR.resolve() == BASE_DIR.resolve():
         AUDIO_DIR.mkdir(parents=True, exist_ok=True)
-        UPLOAD_ICON_DIR.mkdir(parents=True, exist_ok=True)
+        ICON_DIR.mkdir(parents=True, exist_ok=True)
         return
 
     persistent_static = DATA_DIR / "static"
@@ -399,6 +402,8 @@ def prepare_persistent_storage() -> None:
     persistent_audio.mkdir(parents=True, exist_ok=True)
     persistent_icons.mkdir(parents=True, exist_ok=True)
 
+    # url_for('static', filename='audio/...') / 'uploads/...' をそのまま使えるように、
+    # static/audio と static/uploads を永続ディスク側へリンクします。
     link_targets = [
         (BASE_DIR / "static" / "audio", persistent_audio),
         (BASE_DIR / "static" / "uploads", persistent_uploads),
@@ -414,11 +419,13 @@ def prepare_persistent_storage() -> None:
                 if link_path.is_dir() and not any(link_path.iterdir()):
                     link_path.rmdir()
                 else:
+                    # 既に中身がある場合は壊さず、そのまま利用します。
                     continue
 
             link_path.parent.mkdir(parents=True, exist_ok=True)
             link_path.symlink_to(target_path, target_is_directory=True)
         except Exception:
+            # symlinkが使えない環境では通常フォルダとして使います。
             link_path.mkdir(parents=True, exist_ok=True)
 
 
