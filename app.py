@@ -252,6 +252,7 @@ def init_db() -> None:
             audio_file TEXT DEFAULT '',
             example_audio_file TEXT DEFAULT '',
             category TEXT DEFAULT '未分類',
+            part_of_speech TEXT DEFAULT '',
             level INTEGER DEFAULT 1,
             favorite INTEGER DEFAULT 0,
             created_by_user_id INTEGER,
@@ -285,6 +286,7 @@ def init_db() -> None:
     ensure_column(conn, "words", "audio_file", "audio_file TEXT DEFAULT ''")
     ensure_column(conn, "words", "example_audio_file", "example_audio_file TEXT DEFAULT ''")
     ensure_column(conn, "words", "category", "category TEXT DEFAULT '未分類'")
+    ensure_column(conn, "words", "part_of_speech", "part_of_speech TEXT DEFAULT ''")
     ensure_column(conn, "words", "level", "level INTEGER DEFAULT 1")
     ensure_column(conn, "words", "favorite", "favorite INTEGER DEFAULT 0")
     ensure_column(conn, "words", "created_by_user_id", "created_by_user_id INTEGER")
@@ -347,6 +349,7 @@ def init_db() -> None:
 
     ensure_column(conn, "test_sessions", "share_text", "share_text TEXT DEFAULT ''")
 
+    backfill_part_of_speech(conn)
     conn.commit()
     conn.close()
 
@@ -618,6 +621,8 @@ def inject_current_user():
         "cat_types": CAT_TYPES,
         "cat_image": cat_image,
         "cat_type_label": cat_type_label,
+        "part_of_speech_label": part_of_speech_label,
+        "part_of_speech_labels": PART_OF_SPEECH_LABELS,
     }
 
 
@@ -754,6 +759,7 @@ def word_select_sql() -> str:
             w.audio_file,
             w.example_audio_file,
             w.category,
+            w.part_of_speech,
             w.level,
             COALESCE(f.favorite, 0) AS favorite,
             w.favorite AS global_favorite,
@@ -946,18 +952,169 @@ def get_random_word(scope: str = "all") -> sqlite3.Row | None:
     return fetch_word(random.choice(ids))
 
 
+
+PART_OF_SPEECH_LABELS = {
+    "noun": "名詞",
+    "verb": "動詞",
+    "adjective": "形容詞",
+    "adverb": "副詞",
+    "other": "その他",
+}
+
+
+def normalize_part_of_speech(value: str | None) -> str:
+    text = (value or "").strip().lower()
+
+    mapping = {
+        "noun": "noun",
+        "n": "noun",
+        "名詞": "noun",
+        "verb": "verb",
+        "v": "verb",
+        "動詞": "verb",
+        "adjective": "adjective",
+        "adj": "adjective",
+        "形容詞": "adjective",
+        "形容動詞": "adjective",
+        "adverb": "adverb",
+        "adv": "adverb",
+        "副詞": "adverb",
+        "other": "other",
+        "その他": "other",
+    }
+
+    return mapping.get(text, text if text in PART_OF_SPEECH_LABELS else "")
+
+
+def infer_part_of_speech(english: str = "", japanese: str = "", category: str = "") -> str:
+    """
+    既存CSVに品詞列がない場合の自動推定です。
+    4択の難易度調整が目的なので、完璧な文法判定よりも
+    「日本語の見た目で答えがバレない」ことを優先しています。
+    """
+    jp = (japanese or "").strip()
+    en = (english or "").strip().lower()
+    cat = (category or "").strip().lower()
+
+    # 複数訳は先頭を主な訳として見る
+    primary = re.split(r"[,、/／;；]", jp)[0].strip()
+
+    # 副詞: 「〜に」「〜く」や英語の -ly を優先
+    if en.endswith("ly") or primary.endswith("に") or primary.endswith("的に") or primary.endswith("く"):
+        return "adverb"
+
+    # 動詞: 日本語訳で「〜する」「〜させる」「〜になる」など
+    verb_endings = (
+        "する", "させる", "される", "できる", "なる", "得る", "える", "める", "ける",
+        "す", "つ", "く", "ぐ", "む", "ぶ", "ぬ", "る"
+    )
+    if any(primary.endswith(end) for end in verb_endings):
+        # 「大きく」「詳しく」のような副詞を動詞扱いしない
+        if not primary.endswith(("く", "に")):
+            return "verb"
+
+    # 形容詞: 日本語訳で「〜な」「〜の」「〜的な」「〜可能な」など
+    adjective_endings = (
+        "な", "の", "的な", "可能な", "できる", "らしい", "やすい", "にくい",
+        "高い", "低い", "多い", "少ない", "良い", "悪い", "大きい", "小さい",
+        "新しい", "古い", "早い", "遅い", "強い", "弱い", "正確な", "重要な"
+    )
+    if any(primary.endswith(end) for end in adjective_endings):
+        return "adjective"
+
+    # 英語側のざっくり判定
+    adjective_suffixes = (
+        "able", "ible", "al", "ive", "ous", "ful", "less", "ic", "ical",
+        "ary", "ory", "ent", "ant", "ate", "y"
+    )
+    noun_suffixes = (
+        "tion", "sion", "ment", "ness", "ity", "ance", "ence", "ship",
+        "ism", "ist", "er", "or", "ee", "cy", "age", "ure", "hood", "dom"
+    )
+
+    if en.endswith(adjective_suffixes):
+        return "adjective"
+    if en.endswith(noun_suffixes):
+        return "noun"
+
+    if "verbs" in cat or "verb" in cat:
+        return "verb"
+    if "adjectives" in cat or "adjective" in cat:
+        return "adjective"
+    if "modifiers" in cat or "adverb" in cat:
+        return "adverb"
+    if "nouns" in cat or "noun" in cat:
+        return "noun"
+
+    return "noun"
+
+
+def part_of_speech_label(value: str | None) -> str:
+    return PART_OF_SPEECH_LABELS.get(normalize_part_of_speech(value), "未分類")
+
+
+def backfill_part_of_speech(conn: sqlite3.Connection) -> None:
+    rows = conn.execute(
+        """
+        SELECT id, english, japanese, category, part_of_speech
+        FROM words
+        WHERE part_of_speech IS NULL OR part_of_speech = ''
+        """
+    ).fetchall()
+
+    for row in rows:
+        inferred = infer_part_of_speech(row["english"], row["japanese"], row["category"])
+        conn.execute(
+            "UPDATE words SET part_of_speech = ?, updated_at = ? WHERE id = ?",
+            (inferred, now_text(), row["id"]),
+        )
+
+
 def get_choices(correct_word: sqlite3.Row, limit: int = 4) -> list[str]:
+    """
+    4択のダミー選択肢は、正解単語と同じ品詞から優先して選びます。
+    これにより「日本語訳が〜するだから動詞だな」のような品詞バレを防ぎます。
+    """
+    correct_pos = normalize_part_of_speech(correct_word["part_of_speech"])
+    if not correct_pos:
+        correct_pos = infer_part_of_speech(
+            correct_word["english"],
+            correct_word["japanese"],
+            correct_word["category"],
+        )
+
     conn = get_db_connection()
+
     wrong_words = conn.execute(
         """
         SELECT japanese
         FROM words
         WHERE id != ?
+          AND part_of_speech = ?
         ORDER BY RANDOM()
         LIMIT ?
         """,
-        (correct_word["id"], limit - 1),
+        (correct_word["id"], correct_pos, limit - 1),
     ).fetchall()
+
+    # 同じ品詞が足りない場合だけ、ランダムで補完
+    if len(wrong_words) < limit - 1:
+        already = [correct_word["japanese"]] + [row["japanese"] for row in wrong_words]
+        placeholders = ",".join(["?"] * len(already))
+        extra_limit = (limit - 1) - len(wrong_words)
+        extra_words = conn.execute(
+            f"""
+            SELECT japanese
+            FROM words
+            WHERE id != ?
+              AND japanese NOT IN ({placeholders})
+            ORDER BY RANDOM()
+            LIMIT ?
+            """,
+            [correct_word["id"]] + already + [extra_limit],
+        ).fetchall()
+        wrong_words = list(wrong_words) + list(extra_words)
+
     conn.close()
 
     choices = [correct_word["japanese"]] + [row["japanese"] for row in wrong_words]
@@ -1672,6 +1829,9 @@ def add_word():
         memo = request.form.get("memo", "").strip()
         audio_text = request.form.get("audio_text", "").strip()
         category = request.form.get("category", "").strip() or "未分類"
+        part_of_speech = normalize_part_of_speech(request.form.get("part_of_speech", ""))
+        if not part_of_speech:
+            part_of_speech = infer_part_of_speech(english, japanese, category)
         level = int(request.form.get("level", "1"))
         favorite = 1 if request.form.get("favorite") == "on" else 0
 
@@ -1684,10 +1844,10 @@ def add_word():
 
             conn.execute(
                 """
-                INSERT INTO words (english, japanese, example, memo, audio_text, category, level, favorite, created_by_user_id, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO words (english, japanese, example, memo, audio_text, category, part_of_speech, level, favorite, created_by_user_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (english, japanese, example, memo, audio_text, category, level, favorite, current_user_id(), now_text(), now_text()),
+                (english, japanese, example, memo, audio_text, category, part_of_speech, level, favorite, current_user_id(), now_text(), now_text()),
             )
             conn.commit()
             conn.close()
@@ -1711,6 +1871,9 @@ def edit_word(word_id: int):
         memo = request.form.get("memo", "").strip()
         audio_text = request.form.get("audio_text", "").strip()
         category = request.form.get("category", "").strip() or "未分類"
+        part_of_speech = normalize_part_of_speech(request.form.get("part_of_speech", ""))
+        if not part_of_speech:
+            part_of_speech = infer_part_of_speech(english, japanese, category)
         level = int(request.form.get("level", "1"))
         favorite = 1 if request.form.get("favorite") == "on" else 0
 
@@ -1724,10 +1887,10 @@ def edit_word(word_id: int):
             conn.execute(
                 """
                 UPDATE words
-                SET english = ?, japanese = ?, example = ?, memo = ?, audio_text = ?, category = ?, level = ?, favorite = ?, updated_at = ?
+                SET english = ?, japanese = ?, example = ?, memo = ?, audio_text = ?, category = ?, part_of_speech = ?, level = ?, favorite = ?, updated_at = ?
                 WHERE id = ?
                 """,
-                (english, japanese, example, memo, audio_text, category, level, favorite, now_text(), word_id),
+                (english, japanese, example, memo, audio_text, category, part_of_speech, level, favorite, now_text(), word_id),
             )
             conn.commit()
             conn.close()
@@ -1800,10 +1963,10 @@ def seed_words():
             audio_text = english
             conn.execute(
                 """
-                INSERT INTO words (english, japanese, example, memo, audio_text, category, level, favorite, created_by_user_id, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+                INSERT INTO words (english, japanese, example, memo, audio_text, category, part_of_speech, level, favorite, created_by_user_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
                 """,
-                (english, japanese, example, memo, audio_text, category, level, current_user_id(), now_text(), now_text()),
+                (english, japanese, example, memo, audio_text, category, part_of_speech, level, current_user_id(), now_text(), now_text()),
             )
             added_count += 1
         else:
@@ -2407,6 +2570,11 @@ def import_words():
             memo = (row.get("memo") or row.get("メモ") or "").strip()
             audio_text = (row.get("audio_text") or row.get("読み上げ用") or row.get("音声用テキスト") or "").strip()
             category = (row.get("category") or row.get("カテゴリ") or "未分類").strip() or "未分類"
+            part_of_speech = normalize_part_of_speech(
+                row.get("part_of_speech") or row.get("pos") or row.get("品詞") or ""
+            )
+            if not part_of_speech:
+                part_of_speech = infer_part_of_speech(english, japanese, category)
 
             try:
                 level = int(row.get("level") or row.get("レベル") or 1)

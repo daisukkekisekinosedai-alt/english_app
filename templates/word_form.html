@@ -39,6 +39,17 @@
         </label>
 
         <label>
+            品詞
+            <select name="part_of_speech">
+                <option value="">自動判定</option>
+                {% for key, label in part_of_speech_labels.items() %}
+                    <option value="{{ key }}" {% if word and word["part_of_speech"] == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <span class="hint">4択の選択肢は、同じ品詞の日本語訳から優先して出ます。</span>
+        </label>
+
+        <label>
             レベル
             <select name="level">
                 {% for n in range(1, 6) %}

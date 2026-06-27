@@ -65,6 +65,7 @@
                             <span class="tag favorite-tag">★ お気に入り</span>
                         {% endif %}
                         <span class="tag">{{ word["category"] }}</span>
+                    <span class="tag">{{ part_of_speech_label(word["part_of_speech"]) }}</span>
                         <span class="tag">Lv.{{ word["level"] }}</span>
                     </div>
                     {% if word["audio_file"] %}
