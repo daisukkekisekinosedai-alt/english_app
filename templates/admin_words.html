@@ -6,7 +6,7 @@
     <div class="ranking-hero-text">
         <p class="eyebrow">Master only</p>
         <h1>単語一括削除</h1>
-        <p class="lead small-lead">単語の削除はmaster専用です。削除すると、その単語に紐づく学習履歴・お気に入りも削除されます。</p>
+        <p class="lead small-lead">単語の削除はmaster専用です。削除しても学習履歴・EXP・レベルは保持されます。お気に入り紐づけだけ削除されます。</p>
     </div>
     <img class="ranking-hero-cat" src="{{ url_for('static', filename=cat_image('study')) }}" alt="単語管理をする子猫">
 </section>
@@ -83,6 +83,10 @@
     {% endif %}
 </section>
 
+<section class="card mini-card success-card">
+    <p class="muted">v21では、単語削除してもレベルは下がりません。学習履歴・EXP・連続学習は過去実績として保持されます。</p>
+</section>
+
 <section class="card admin-panel danger-zone">
     <div class="section-title-row">
         <div>
@@ -91,7 +95,7 @@
         </div>
     </div>
 
-    <p class="muted">全単語、全ユーザーの単語別学習履歴、お気に入りが削除されます。ランキングのテスト履歴自体は残りますが、単語別の復習情報は消えます。</p>
+    <p class="muted">全単語とお気に入り紐づけが削除されます。学習履歴・EXP・レベル・ランキングのテスト履歴は保持されます。単語自体が消えるため、単語別の復習対象には表示されなくなります。</p>
 
     <form method="POST" action="{{ url_for('admin_delete_all_words') }}" class="form danger-form" onsubmit="return confirm('本当にすべての単語を削除しますか？この操作は戻せません。');">
         <label>

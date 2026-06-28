@@ -68,7 +68,7 @@
         </div>
     </div>
 
-    <p class="muted">Batch {{ batch["id"] }} で追加された単語だけを削除します。別のCSVや手入力の単語は削除しません。ただし、削除対象単語に紐づく学習履歴・お気に入りは一緒に削除されます。</p>
+    <p class="muted">Batch {{ batch["id"] }} で追加された単語だけを削除します。別のCSVや手入力の単語は削除しません。学習履歴・EXP・レベルは保持されます。お気に入り紐づけだけ削除されます。</p>
 
     <form method="POST" action="{{ url_for('admin_delete_import_batch', batch_id=batch['id']) }}" class="form danger-form" onsubmit="return confirm('Batch {{ batch["id"] }} の単語を削除しますか？この操作は戻せません。');">
         <label>

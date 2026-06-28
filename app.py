@@ -3751,7 +3751,9 @@ def delete_import_batch_words(batch_id: int) -> int:
         return 0
 
     placeholders = ",".join(["?"] * len(word_ids))
-    conn.execute(f"DELETE FROM study_logs WHERE word_id IN ({placeholders})", word_ids)
+    # v21:
+    # CSVバッチ削除でも study_logs は消しません。
+    # 単語だけを取り下げ、ユーザーの累計EXP/レベルは保持します。
     conn.execute(f"DELETE FROM user_word_flags WHERE word_id IN ({placeholders})", word_ids)
     conn.execute(f"DELETE FROM words WHERE id IN ({placeholders})", word_ids)
     conn.execute(
@@ -3822,7 +3824,10 @@ def delete_words_by_ids(word_ids: list[int]) -> int:
 
     placeholders = ",".join(["?"] * len(clean_ids))
     conn = get_db_connection()
-    conn.execute(f"DELETE FROM study_logs WHERE word_id IN ({placeholders})", clean_ids)
+    # v21:
+    # 単語を削除しても、学習履歴 study_logs は残します。
+    # レベル/EXP/連続学習/テスト履歴を「過去の実績」として保持するためです。
+    # 画面上の単語別表示は words とJOINするので、削除済み単語は通常表示されません。
     conn.execute(f"DELETE FROM user_word_flags WHERE word_id IN ({placeholders})", clean_ids)
     conn.execute(f"DELETE FROM words WHERE id IN ({placeholders})", clean_ids)
     conn.commit()
@@ -3867,7 +3872,9 @@ def admin_delete_all_words():
         return redirect(url_for("admin_words", error="confirm"))
 
     conn = get_db_connection()
-    conn.execute("DELETE FROM study_logs")
+    # v21:
+    # 全単語削除でも study_logs は消しません。
+    # 学習実績・レベル・EXP・連続学習はユーザーの過去実績として保持します。
     conn.execute("DELETE FROM user_word_flags")
     conn.execute("DELETE FROM words")
     conn.execute(
