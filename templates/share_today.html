@@ -9,6 +9,45 @@
         <div class="stat-card"><span class="stat-label">正解数</span><strong>{{ total_correct }}</strong></div>
         <div class="stat-card"><span class="stat-label">正答率</span><strong>{{ accuracy }}%</strong></div>
     </section>
+
+    <section class="share-image-box">
+        <div class="share-image-header">
+            <div>
+                <h2>今日の結果を画像で共有</h2>
+                <p class="muted">スクショ不要。画像を自動生成して共有できます。</p>
+            </div>
+            <span class="share-badge">NEW</span>
+        </div>
+
+        <div class="share-preview-frame">
+            <img src="{{ url_for('share_today_image_svg') }}" alt="今日の共有画像プレビュー">
+        </div>
+
+        <div class="hero-actions">
+            <button
+                class="button primary share-image-button"
+                type="button"
+                data-share-image-url="{{ url_for('share_today_image_svg') }}"
+                data-share-filename="nyannyan_today_result.png"
+                data-share-title="今日の結果を共有"
+                data-share-text-target="share-text"
+            >
+                画像を共有（LINEなど）
+            </button>
+
+            <button
+                class="button secondary download-image-button"
+                type="button"
+                data-download-image-url="{{ url_for('share_today_image_svg') }}"
+                data-download-filename="nyannyan_today_result.png"
+            >
+                画像を保存
+            </button>
+
+            <a class="button ghost" href="{{ url_for('share_today_image_svg') }}" target="_blank">画像を開く</a>
+        </div>
+    </section>
+
     <div class="share-box">
         <h2>そのまま投稿できるテキスト</h2>
         <textarea id="share-text" readonly rows="13">{{ share_text }}</textarea>

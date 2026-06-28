@@ -104,3 +104,127 @@ document.querySelectorAll(".copy-button").forEach(function (button) {
         }
     });
 });
+
+
+
+
+async function createPngFileFromSvgUrl(svgUrl, filename) {
+    const response = await fetch(svgUrl, { credentials: "same-origin" });
+    if (!response.ok) {
+        throw new Error("画像データの取得に失敗しました。");
+    }
+
+    const svgText = await response.text();
+    const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+    const objectUrl = URL.createObjectURL(svgBlob);
+
+    try {
+        const img = new Image();
+        const loaded = new Promise(function (resolve, reject) {
+            img.onload = resolve;
+            img.onerror = reject;
+        });
+        img.src = objectUrl;
+        await loaded;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || 1080;
+        canvas.height = img.naturalHeight || 1350;
+
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff8fc";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const blob = await new Promise(function (resolve) {
+            canvas.toBlob(resolve, "image/png");
+        });
+
+        if (!blob) {
+            throw new Error("PNG変換に失敗しました。");
+        }
+
+        return new File([blob], filename || "share-image.png", { type: "image/png" });
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
+async function downloadShareImage(svgUrl, filename) {
+    const file = await createPngFileFromSvgUrl(svgUrl, filename);
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || "share-image.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1200);
+}
+
+function readShareTextFromTarget(targetId) {
+    if (!targetId) return "";
+    const target = document.getElementById(targetId);
+    if (!target) return "";
+    return target.value || target.textContent || "";
+}
+
+document.querySelectorAll(".share-image-button").forEach(function (button) {
+    button.addEventListener("click", async function () {
+        const svgUrl = button.getAttribute("data-share-image-url");
+        const filename = button.getAttribute("data-share-filename") || "share-image.png";
+        const title = button.getAttribute("data-share-title") || "共有画像";
+        const textTarget = button.getAttribute("data-share-text-target");
+        const shareText = readShareTextFromTarget(textTarget);
+
+        const oldText = button.textContent;
+        button.disabled = true;
+        button.textContent = "画像を準備中...";
+
+        try {
+            const file = await createPngFileFromSvgUrl(svgUrl, filename);
+
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: title,
+                    text: shareText,
+                    files: [file]
+                });
+            } else {
+                await downloadShareImage(svgUrl, filename);
+                alert("このブラウザでは直接共有に未対応のため、画像を保存しました。LINEなどでその画像を送ってください。");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("画像共有の準備に失敗しました。画像保存に切り替えます。");
+            try {
+                await downloadShareImage(svgUrl, filename);
+            } catch (downloadError) {
+                console.error(downloadError);
+            }
+        } finally {
+            button.disabled = false;
+            button.textContent = oldText;
+        }
+    });
+});
+
+document.querySelectorAll(".download-image-button").forEach(function (button) {
+    button.addEventListener("click", async function () {
+        const svgUrl = button.getAttribute("data-download-image-url");
+        const filename = button.getAttribute("data-download-filename") || "share-image.png";
+        const oldText = button.textContent;
+
+        button.disabled = true;
+        button.textContent = "保存中...";
+        try {
+            await downloadShareImage(svgUrl, filename);
+        } catch (error) {
+            console.error(error);
+            alert("画像保存に失敗しました。");
+        } finally {
+            button.disabled = false;
+            button.textContent = oldText;
+        }
+    });
+});

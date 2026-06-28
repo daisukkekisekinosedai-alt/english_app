@@ -5,11 +5,53 @@
     <p class="eyebrow">Share result</p>
     <h1>{{ test_session["correct_count"] }} / {{ test_session["total_count"] }}</h1>
     <p class="lead">{{ test_session["mode"] }} / {{ test_session["scope"] }} ・ 正答率 {{ test_session["accuracy"] }}%</p>
+
+    <section class="share-image-box">
+        <div class="share-image-header">
+            <div>
+                <h2>共有用画像</h2>
+                <p class="muted">ボタンを押すだけで画像化して、そのまま共有できます。</p>
+            </div>
+            <span class="share-badge">LINE対応</span>
+        </div>
+
+        <div class="share-preview-frame">
+            <img src="{{ url_for('share_session_image_svg', test_session_id=test_session['id']) }}" alt="共有画像プレビュー">
+        </div>
+
+        <div class="hero-actions">
+            <button
+                class="button primary share-image-button"
+                type="button"
+                data-share-image-url="{{ url_for('share_session_image_svg', test_session_id=test_session['id']) }}"
+                data-share-filename="nyannyan_session_result.png"
+                data-share-title="テスト結果を共有"
+                data-share-text-target="share-session-text"
+            >
+                画像を共有（LINEなど）
+            </button>
+
+            <button
+                class="button secondary download-image-button"
+                type="button"
+                data-download-image-url="{{ url_for('share_session_image_svg', test_session_id=test_session['id']) }}"
+                data-download-filename="nyannyan_session_result.png"
+            >
+                画像を保存
+            </button>
+
+            <a class="button ghost" href="{{ url_for('share_session_image_svg', test_session_id=test_session['id']) }}" target="_blank">画像を開く</a>
+        </div>
+
+        <p class="muted small-note">※ iPhone / Android では共有シートから LINE を選べます。ブラウザが未対応の場合は画像保存に切り替わります。</p>
+    </section>
+
     <div class="share-box">
         <h2>そのまま投稿できるテキスト</h2>
         <textarea id="share-session-text" readonly rows="12">{{ test_session["share_text"] }}</textarea>
         <button class="button primary copy-button" type="button" data-copy-target="share-session-text">コピー</button>
     </div>
+
     <div class="hero-actions">
         <a class="button secondary" href="{{ url_for('dashboard') }}">学習記録へ</a>
         <a class="button secondary" href="{{ url_for('share_today') }}">今日の結果</a>

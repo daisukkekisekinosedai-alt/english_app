@@ -4,6 +4,7 @@ import asyncio
 import csv
 import os
 import hashlib
+import html
 import io
 import random
 import re
@@ -1620,6 +1621,226 @@ def create_share_text(test_session: sqlite3.Row, user: sqlite3.Row | None = None
         "",
         "#英語学習 #TOEIC #今日の積み上げ #EnglishPocket",
     ])
+
+
+def xml_escape(value: object) -> str:
+    return html.escape("" if value is None else str(value), quote=True)
+
+
+def wrap_svg_text(text: str, width: int = 22, max_lines: int = 5) -> list[str]:
+    text = (text or "").strip()
+    if not text:
+        return []
+
+    raw_lines = text.splitlines()
+    lines: list[str] = []
+
+    for raw in raw_lines:
+        raw = raw.strip()
+        if not raw:
+            if lines and lines[-1] != "":
+                lines.append("")
+            continue
+
+        # スペースの有無に応じて、単語単位 or 文字単位で折り返します。
+        if " " in raw:
+            current = ""
+            for word in raw.split():
+                candidate = (current + " " + word).strip()
+                if len(candidate) <= width:
+                    current = candidate
+                else:
+                    if current:
+                        lines.append(current)
+                    if len(word) <= width:
+                        current = word
+                    else:
+                        for i in range(0, len(word), width):
+                            lines.append(word[i:i+width])
+                        current = ""
+            if current:
+                lines.append(current)
+        else:
+            for i in range(0, len(raw), width):
+                lines.append(raw[i:i+width])
+
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        if lines[-1]:
+            lines[-1] = lines[-1][: max(0, width - 1)] + "…"
+        else:
+            lines[-1] = "…"
+    return lines
+
+
+def build_share_svg(
+    *,
+    eyebrow: str,
+    title: str,
+    subtitle: str,
+    main_score: str,
+    score_label: str,
+    comment: str,
+    detail_lines: list[str],
+    footer_lines: list[str],
+    accent: str = "#ff8fbd",
+) -> str:
+    width = 1080
+    height = 1350
+
+    title_lines = wrap_svg_text(title, width=18, max_lines=2)
+    subtitle_lines = wrap_svg_text(subtitle, width=28, max_lines=2)
+    comment_lines = wrap_svg_text(comment, width=25, max_lines=4)
+
+    detail_lines_clean = []
+    for line in detail_lines:
+        detail_lines_clean.extend(wrap_svg_text(line, width=34, max_lines=2) or [""])
+    detail_lines_clean = detail_lines_clean[:6]
+
+    footer_lines_clean = []
+    for line in footer_lines:
+        footer_lines_clean.extend(wrap_svg_text(line, width=40, max_lines=2) or [""])
+    footer_lines_clean = footer_lines_clean[:4]
+
+    def render_lines(lines: list[str], x: int, start_y: int, line_height: int, size: int, color: str, weight: str = "500"):
+        buf = []
+        y = start_y
+        for line in lines:
+            buf.append(
+                f'<text x="{x}" y="{y}" font-size="{size}" font-weight="{weight}" fill="{color}">{xml_escape(line)}</text>'
+            )
+            y += line_height
+        return "\n".join(buf), y
+
+    title_svg, next_y = render_lines(title_lines, 110, 235, 54, 42, "#5c2740", "700")
+    subtitle_svg, _ = render_lines(subtitle_lines, 110, next_y + 8, 34, 24, "#8d5e74", "500")
+    comment_svg, _ = render_lines(comment_lines, 110, 720, 42, 30, "#5c2740", "600")
+    detail_svg, _ = render_lines(detail_lines_clean, 120, 930, 36, 24, "#70465a", "500")
+    footer_svg, _ = render_lines(footer_lines_clean, 110, 1190, 32, 22, "#8f6a7d", "500")
+
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+    <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#fff9fc" />
+            <stop offset="55%" stop-color="#fff1f7" />
+            <stop offset="100%" stop-color="#f7ecff" />
+        </linearGradient>
+        <linearGradient id="accentGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="{xml_escape(accent)}" />
+            <stop offset="100%" stop-color="#ffb8d2" />
+        </linearGradient>
+        <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="20" stdDeviation="28" flood-color="#f0aec9" flood-opacity="0.22"/>
+        </filter>
+    </defs>
+
+    <rect width="{width}" height="{height}" fill="url(#bg)"/>
+    <circle cx="950" cy="120" r="130" fill="#ffd7e8" opacity="0.42"/>
+    <circle cx="140" cy="1220" r="160" fill="#ffe7f1" opacity="0.65"/>
+    <circle cx="910" cy="1110" r="90" fill="#f4dfff" opacity="0.55"/>
+
+    <rect x="60" y="60" rx="48" ry="48" width="960" height="1230" fill="#ffffff" filter="url(#softShadow)"/>
+    <rect x="60" y="60" rx="48" ry="48" width="960" height="1230" fill="none" stroke="#ffd4e5" stroke-width="2"/>
+
+    <rect x="110" y="120" rx="22" ry="22" width="250" height="54" fill="url(#accentGrad)"/>
+    <text x="140" y="156" font-size="24" font-weight="700" fill="#ffffff">{xml_escape(eyebrow)}</text>
+
+    <circle cx="905" cy="175" r="66" fill="#fff1f7" stroke="#ffd4e5" stroke-width="3"/>
+    <text x="905" y="190" text-anchor="middle" font-size="52">🐱</text>
+
+    {title_svg}
+    {subtitle_svg}
+
+    <rect x="110" y="365" rx="36" ry="36" width="860" height="235" fill="url(#accentGrad)"/>
+    <text x="540" y="470" text-anchor="middle" font-size="88" font-weight="800" fill="#ffffff">{xml_escape(main_score)}</text>
+    <text x="540" y="535" text-anchor="middle" font-size="28" font-weight="600" fill="#fff7fb">{xml_escape(score_label)}</text>
+
+    <rect x="110" y="645" rx="28" ry="28" width="860" height="180" fill="#fff6fa" stroke="#ffd8ea" stroke-width="2"/>
+    <text x="110" y="600" font-size="22" font-weight="700" fill="#c85e8a">Coach comment</text>
+    {comment_svg}
+
+    <rect x="110" y="875" rx="28" ry="28" width="860" height="235" fill="#fffdfd" stroke="#f1dbe6" stroke-width="2"/>
+    <text x="110" y="845" font-size="22" font-weight="700" fill="#c85e8a">Summary</text>
+    {detail_svg}
+
+    <line x1="110" y1="1160" x2="970" y2="1160" stroke="#f0d8e4" stroke-width="2"/>
+    {footer_svg}
+
+    <text x="110" y="1270" font-size="22" font-weight="700" fill="#ff8fbd">にゃんにゃんイングリッシュ</text>
+    <text x="970" y="1270" text-anchor="end" font-size="20" font-weight="600" fill="#9c7b8b">Made for sharing</text>
+</svg>'''
+    return svg
+
+
+def build_today_share_svg(user: sqlite3.Row, summary: dict, stats: dict, total_answers: int, total_correct: int, accuracy: float) -> str:
+    comment = share_score_comment(accuracy, total_correct, total_answers)
+    streak = stats["gamification"]["streak"]["current"]
+    level = stats["gamification"]["game"]["level"]
+    title_name = user["display_name"]
+
+    detail_lines = [
+        f"今日の回答数: {total_answers}問",
+        f"正解数: {total_correct}問 / 正答率 {accuracy}%",
+        f"学習レベル: Lv.{level}",
+        f"{streak}日連続学習中",
+    ]
+
+    if summary.get("logs"):
+        for row in summary["logs"][:2]:
+            row_total = row["total_count"]
+            row_correct = row["correct_count"] or 0
+            row_accuracy = round((row_correct / row_total) * 100, 1) if row_total else 0
+            detail_lines.append(f"{share_mode_label(row['mode'])}: {row_correct}/{row_total} ({row_accuracy}%)")
+
+    footer_lines = [
+        "TOEIC高難度単語をコツコツ学習中。",
+        "#英語学習 #TOEIC #今日の積み上げ",
+    ]
+
+    return build_share_svg(
+        eyebrow="Today Share",
+        title=f"{title_name} の今日の英語ログ",
+        subtitle=datetime.now().strftime("%Y-%m-%d"),
+        main_score=f"{total_correct}/{total_answers}",
+        score_label=f"正解数 / 正答率 {accuracy}%",
+        comment=comment,
+        detail_lines=detail_lines,
+        footer_lines=footer_lines,
+    )
+
+
+def build_session_share_svg(user: sqlite3.Row, test_session: sqlite3.Row) -> str:
+    mode = share_mode_label(test_session["mode"])
+    scope = share_scope_label(test_session["scope"])
+    correct = test_session["correct_count"]
+    total = test_session["total_count"]
+    accuracy = test_session["accuracy"]
+    comment = share_score_comment(accuracy, correct, total)
+
+    detail_lines = [
+        f"テスト種別: {mode}",
+        f"出題範囲: {scope}",
+        f"スコア: {correct}/{total}",
+        f"正答率: {accuracy}%",
+        f"挑戦者: {user['display_name']}",
+        f"実施日: {(test_session['created_at'] or '')[:10]}",
+    ]
+
+    footer_lines = [
+        "結果を画像化してそのまま共有できます。",
+        "#にゃんにゃんイングリッシュ #TOEIC #英語学習",
+    ]
+
+    return build_share_svg(
+        eyebrow="Session Result",
+        title=f"{user['display_name']} のテスト結果",
+        subtitle=f"{mode} / {scope}",
+        main_score=f"{correct}/{total}",
+        score_label=f"正答率 {accuracy}%",
+        comment=comment,
+        detail_lines=detail_lines,
+        footer_lines=footer_lines,
+    )
 
 
 def create_test_session(user_id: int, mode: str, scope: str, total: int, correct: int) -> int:
@@ -3973,6 +4194,41 @@ def share_card():
         accuracy=accuracy,
         comment=comment,
     )
+
+
+@app.route("/share/today/image.svg")
+@login_required
+def share_today_image_svg():
+    uid = require_user_id()
+    user = get_current_user()
+    summary = get_daily_user_summary(uid)
+    stats = get_stats(uid)
+
+    total_answers = sum(row["total_count"] for row in summary["logs"])
+    total_correct = sum(row["correct_count"] or 0 for row in summary["logs"])
+    accuracy = round((total_correct / total_answers) * 100, 1) if total_answers else 0
+
+    svg = build_today_share_svg(user, summary, stats, total_answers, total_correct, accuracy)
+    return Response(svg, mimetype="image/svg+xml")
+
+
+@app.route("/share/session/<int:test_session_id>/image.svg")
+@login_required
+def share_session_image_svg(test_session_id: int):
+    uid = current_user_id()
+    conn = get_db_connection()
+    test_session = conn.execute(
+        "SELECT * FROM test_sessions WHERE id = ? AND user_id = ?",
+        (test_session_id, uid),
+    ).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+    conn.close()
+
+    if test_session is None or user is None:
+        return redirect(url_for("dashboard"))
+
+    svg = build_session_share_svg(user, test_session)
+    return Response(svg, mimetype="image/svg+xml")
 
 
 @app.route("/dashboard")
