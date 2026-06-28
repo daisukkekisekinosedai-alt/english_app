@@ -9,10 +9,10 @@
         <p>音をよく聞いていこう。ねこも耳をすませています。</p>
     </div>
     <p class="eyebrow">Listening quiz</p>
-    <h1>音声を聞いて<br>意味を答える</h1>
+    <h1>音声を聞いて<br>意味を4択で選ぶ</h1>
 
     <div class="listen-panel">
-        <p class="lead small-lead">英単語は最初は隠しています。音声を聞いて、日本語の意味を入力してください。</p>
+        <p class="lead small-lead">英単語は最初は隠しています。音声を聞いて、正しい日本語訳を4択から選んでください。</p>
 
         {% if word["audio_file"] %}
             <p class="muted">保存済み音声</p>
@@ -46,12 +46,11 @@
         <input type="hidden" name="mode" value="listen">
         <input type="hidden" name="scope" value="{{ scope }}">
 
-        <label class="input-answer-label">
-            日本語の意味
-            <input type="text" name="answer" required autofocus placeholder="聞こえた単語の意味を入力">
-        </label>
-
-        <button class="button primary wide" type="submit">回答する</button>
+        <div class="choice-grid listening-choice-grid">
+            {% for choice in choices %}
+                <button class="choice-button" type="submit" name="answer" value="{{ choice }}">{{ choice }}</button>
+            {% endfor %}
+        </div>
     </form>
 
     {% if word["example"] %}
@@ -65,7 +64,7 @@
         <a href="{{ url_for('listen_quiz', scope='all') }}">全単語</a>
         <a href="{{ url_for('listen_quiz', scope='weak') }}">苦手</a>
         <a href="{{ url_for('listen_quiz', scope='favorite') }}">お気に入り</a>
-        <a href="{{ url_for('session_start', mode='listen', scope=scope, count=10) }}">10問連続</a>
+        <a href="{{ url_for('session_start', mode='listen', scope=scope, count=10) }}">リスニング4択10問</a>
     </div>
 </section>
 {% endblock %}

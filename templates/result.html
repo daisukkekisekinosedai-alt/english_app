@@ -53,7 +53,7 @@
 
     <div class="hero-actions">
         {% if mode == "listen" %}
-            <a class="button primary" href="{{ url_for('listen_quiz', scope=scope) }}">次の音声問題</a>
+            <a class="button primary" href="{{ url_for('listen_quiz', scope=scope) }}">次のリスニング4択</a>
         {% else %}
             <a class="button primary" href="{{ url_for('quiz', mode=mode, scope=scope) }}">次の問題</a>
         {% endif %}

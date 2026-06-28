@@ -24,7 +24,7 @@
 
     {% if data.mode == "listen" %}
         <div class="listen-panel">
-            <p class="lead small-lead">まず音声を聞いて、日本語の意味を入力してください。</p>
+            <p class="lead small-lead">まず音声を聞いて、正しい日本語訳を4択から選んでください。</p>
             {% if word["audio_file"] %}
                 <p class="muted">保存済み音声</p>
                 <audio controls autoplay preload="auto" src="{{ url_for('static', filename=word['audio_file']) }}"></audio>
@@ -55,14 +55,14 @@
     <form method="POST" action="{{ url_for('session_answer') }}" class="quiz-form">
         <input type="hidden" name="word_id" value="{{ word['id'] }}">
 
-        {% if data.mode == "input" or data.mode == "listen" %}
+        {% if data.mode == "input" %}
             <label class="input-answer-label">
                 回答
                 <input type="text" name="answer" required autofocus placeholder="日本語の意味を入力">
             </label>
             <button class="button primary wide" type="submit">回答する</button>
         {% else %}
-            <div class="choice-grid">
+            <div class="choice-grid {% if data.mode == 'listen' %}listening-choice-grid{% endif %}">
                 {% for choice in choices %}
                     <button class="choice-button" type="submit" name="answer" value="{{ choice }}">{{ choice }}</button>
                 {% endfor %}

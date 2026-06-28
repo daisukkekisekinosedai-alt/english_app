@@ -3107,7 +3107,9 @@ def listen_quiz():
     if word is None:
         return redirect(url_for("words", error="no_words"))
 
-    return render_template("listening_quiz.html", word=word, mode="listen", scope=scope)
+    # v18: リスニングは入力式ではなく、日本語訳を選ぶ4択問題にします。
+    choices = get_choices(word)
+    return render_template("listening_quiz.html", word=word, choices=choices, mode="listen", scope=scope)
 
 
 @app.route("/answer", methods=["POST"])
@@ -3198,7 +3200,7 @@ def session_quiz():
         session["quiz_session"] = data
         return redirect(url_for("session_quiz"))
 
-    choices = get_choices(word) if data["mode"] == "choice" else []
+    choices = get_choices(word) if data["mode"] in ["choice", "listen"] else []
 
     return render_template(
         "session_quiz.html",

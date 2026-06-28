@@ -3954,3 +3954,27 @@ textarea:focus {
         justify-items: start;
     }
 }
+
+
+/* =========================================================
+   v18 Listening choice quiz
+   ========================================================= */
+
+.listening-choice-grid .choice-button {
+    min-height: 64px;
+    text-align: left;
+    justify-content: flex-start;
+    padding-left: 18px;
+}
+
+.listening-card .listen-panel {
+    background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.96), transparent 9rem),
+        linear-gradient(135deg, #fff8fc, #f4efff);
+    border: 1px solid #ffd8ea;
+    box-shadow: 0 14px 30px rgba(255, 143, 189, 0.10);
+}
+
+.listening-card .large-audio {
+    font-size: 1.08rem;
+}
