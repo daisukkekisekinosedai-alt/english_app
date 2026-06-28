@@ -389,6 +389,25 @@ def init_db() -> None:
 
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS import_batches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            filename TEXT NOT NULL,
+            imported_count INTEGER DEFAULT 0,
+            skipped_count INTEGER DEFAULT 0,
+            invalid_count INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'active',
+            created_by_user_id INTEGER,
+            created_at TEXT NOT NULL,
+            deleted_at TEXT DEFAULT '',
+            deleted_count INTEGER DEFAULT 0,
+            note TEXT DEFAULT '',
+            FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+        )
+        """
+    )
+
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS user_word_flags (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -403,6 +422,12 @@ def init_db() -> None:
         """
     )
 
+    ensure_column(conn, "import_batches", "invalid_count", "invalid_count INTEGER DEFAULT 0")
+    ensure_column(conn, "import_batches", "status", "status TEXT DEFAULT 'active'")
+    ensure_column(conn, "import_batches", "deleted_at", "deleted_at TEXT DEFAULT ''")
+    ensure_column(conn, "import_batches", "deleted_count", "deleted_count INTEGER DEFAULT 0")
+    ensure_column(conn, "import_batches", "note", "note TEXT DEFAULT ''")
+
     # 旧版DBをそのまま使えるように列を追加します。
     ensure_column(conn, "words", "example", "example TEXT DEFAULT ''")
     ensure_column(conn, "words", "memo", "memo TEXT DEFAULT ''")
@@ -414,6 +439,7 @@ def init_db() -> None:
     ensure_column(conn, "words", "level", "level INTEGER DEFAULT 1")
     ensure_column(conn, "words", "favorite", "favorite INTEGER DEFAULT 0")
     ensure_column(conn, "words", "created_by_user_id", "created_by_user_id INTEGER")
+    ensure_column(conn, "words", "import_batch_id", "import_batch_id INTEGER")
     ensure_column(conn, "words", "created_at", f"created_at TEXT DEFAULT '{now_text()}'")
     ensure_column(conn, "words", "updated_at", f"updated_at TEXT DEFAULT '{now_text()}'")
 
@@ -3583,11 +3609,175 @@ def admin_delete_user(user_id: int):
     return redirect(url_for("admin_users", deleted="1"))
 
 
+def create_import_batch(conn: sqlite3.Connection, filename: str, user_id: int | None) -> int:
+    cursor = conn.execute(
+        """
+        INSERT INTO import_batches (
+            filename,
+            imported_count,
+            skipped_count,
+            invalid_count,
+            status,
+            created_by_user_id,
+            created_at
+        )
+        VALUES (?, 0, 0, 0, 'active', ?, ?)
+        """,
+        (filename or "uploaded.csv", user_id, now_text()),
+    )
+    return int(cursor.lastrowid)
+
+
+def update_import_batch_counts(
+    conn: sqlite3.Connection,
+    batch_id: int,
+    imported_count: int,
+    skipped_count: int,
+    invalid_count: int,
+) -> None:
+    conn.execute(
+        """
+        UPDATE import_batches
+        SET imported_count = ?,
+            skipped_count = ?,
+            invalid_count = ?
+        WHERE id = ?
+        """,
+        (imported_count, skipped_count, invalid_count, batch_id),
+    )
+
+
+def get_import_batches() -> list[sqlite3.Row]:
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            b.id,
+            b.filename,
+            b.imported_count,
+            b.skipped_count,
+            b.invalid_count,
+            b.status,
+            b.created_at,
+            b.deleted_at,
+            b.deleted_count,
+            COALESCE(u.display_name, 'unknown') AS created_by,
+            COUNT(w.id) AS current_word_count
+        FROM import_batches b
+        LEFT JOIN users u ON u.id = b.created_by_user_id
+        LEFT JOIN words w ON w.import_batch_id = b.id
+        GROUP BY
+            b.id,
+            b.filename,
+            b.imported_count,
+            b.skipped_count,
+            b.invalid_count,
+            b.status,
+            b.created_at,
+            b.deleted_at,
+            b.deleted_count,
+            u.display_name
+        ORDER BY b.id DESC
+        """
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def get_import_batch_detail(batch_id: int) -> dict | None:
+    conn = get_db_connection()
+    batch = conn.execute(
+        """
+        SELECT
+            b.*,
+            COALESCE(u.display_name, 'unknown') AS created_by
+        FROM import_batches b
+        LEFT JOIN users u ON u.id = b.created_by_user_id
+        WHERE b.id = ?
+        """,
+        (batch_id,),
+    ).fetchone()
+
+    if batch is None:
+        conn.close()
+        return None
+
+    words = conn.execute(
+        """
+        SELECT id, english, japanese, category, level, part_of_speech, created_at
+        FROM words
+        WHERE import_batch_id = ?
+        ORDER BY id DESC
+        LIMIT 500
+        """,
+        (batch_id,),
+    ).fetchall()
+
+    counts = conn.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM words
+        WHERE import_batch_id = ?
+        """,
+        (batch_id,),
+    ).fetchone()
+
+    conn.close()
+    return {
+        "batch": batch,
+        "words": words,
+        "current_word_count": int(counts["count"] or 0),
+    }
+
+
+def delete_import_batch_words(batch_id: int) -> int:
+    conn = get_db_connection()
+    rows = conn.execute("SELECT id FROM words WHERE import_batch_id = ?", (batch_id,)).fetchall()
+    word_ids = [int(row["id"]) for row in rows]
+
+    if not word_ids:
+        conn.execute(
+            """
+            UPDATE import_batches
+            SET status = 'deleted',
+                deleted_at = ?,
+                deleted_count = 0
+            WHERE id = ?
+            """,
+            (now_text(), batch_id),
+        )
+        conn.commit()
+        conn.close()
+        return 0
+
+    placeholders = ",".join(["?"] * len(word_ids))
+    conn.execute(f"DELETE FROM study_logs WHERE word_id IN ({placeholders})", word_ids)
+    conn.execute(f"DELETE FROM user_word_flags WHERE word_id IN ({placeholders})", word_ids)
+    conn.execute(f"DELETE FROM words WHERE id IN ({placeholders})", word_ids)
+    conn.execute(
+        """
+        UPDATE import_batches
+        SET status = 'deleted',
+            deleted_at = ?,
+            deleted_count = ?
+        WHERE id = ?
+        """,
+        (now_text(), len(word_ids), batch_id),
+    )
+    conn.commit()
+    conn.close()
+    return len(word_ids)
+
+
+
 @app.route("/admin/words")
 @master_required
 def admin_words():
     conn = get_db_connection()
     total_words = conn.execute("SELECT COUNT(*) AS count FROM words").fetchone()["count"]
+    imported_words = conn.execute("SELECT COUNT(*) AS count FROM words WHERE import_batch_id IS NOT NULL").fetchone()["count"]
+    manual_words = conn.execute("SELECT COUNT(*) AS count FROM words WHERE import_batch_id IS NULL").fetchone()["count"]
+    active_batches = conn.execute("SELECT COUNT(*) AS count FROM import_batches WHERE status = 'active'").fetchone()["count"]
     categories = conn.execute(
         """
         SELECT COALESCE(NULLIF(category, ''), '未分類') AS category, COUNT(*) AS count
@@ -3598,18 +3788,23 @@ def admin_words():
     ).fetchall()
     recent_words = conn.execute(
         """
-        SELECT id, english, japanese, category, level
+        SELECT id, english, japanese, category, level, import_batch_id
         FROM words
         ORDER BY id DESC
         LIMIT 300
         """
     ).fetchall()
     conn.close()
+    recent_batches = get_import_batches()[:5]
     return render_template(
         "admin_words.html",
         total_words=total_words,
+        imported_words=imported_words,
+        manual_words=manual_words,
+        active_batches=active_batches,
         categories=categories,
         words=recent_words,
+        recent_batches=recent_batches,
     )
 
 
@@ -3675,6 +3870,16 @@ def admin_delete_all_words():
     conn.execute("DELETE FROM study_logs")
     conn.execute("DELETE FROM user_word_flags")
     conn.execute("DELETE FROM words")
+    conn.execute(
+        """
+        UPDATE import_batches
+        SET status = 'deleted',
+            deleted_at = ?,
+            deleted_count = imported_count
+        WHERE status = 'active'
+        """,
+        (now_text(),),
+    )
     conn.commit()
     conn.close()
 
@@ -4246,14 +4451,43 @@ def weak():
     return render_template("weak.html", weak_words=stats["weak_words"])
 
 
+@app.route("/admin/import-batches")
+@master_required
+def admin_import_batches():
+    batches = get_import_batches()
+    return render_template("import_batches.html", batches=batches)
+
+
+@app.route("/admin/import-batches/<int:batch_id>")
+@master_required
+def admin_import_batch_detail(batch_id: int):
+    detail = get_import_batch_detail(batch_id)
+    if detail is None:
+        return redirect(url_for("admin_import_batches", error="not_found"))
+    return render_template("import_batch_detail.html", detail=detail)
+
+
+@app.route("/admin/import-batches/<int:batch_id>/delete", methods=["POST"])
+@master_required
+def admin_delete_import_batch(batch_id: int):
+    confirm = request.form.get("confirm_batch_id", "").strip()
+    if confirm != str(batch_id):
+        return redirect(url_for("admin_import_batch_detail", batch_id=batch_id, error="confirm"))
+
+    deleted_count = delete_import_batch_words(batch_id)
+    return redirect(url_for("admin_import_batches", deleted_batch=batch_id, deleted_count=deleted_count))
+
+
+
 @app.route("/import", methods=["GET", "POST"])
 @master_required
 def import_words():
     if request.method == "POST":
         uploaded_file = request.files.get("csv_file")
         if not uploaded_file:
-            return render_template("import_result.html", imported_count=0, error="CSVファイルが選択されていません。")
+            return render_template("import_result.html", imported_count=0, skipped_count=0, invalid_count=0, batch_id=None, error="CSVファイルが選択されていません。")
 
+        original_filename = uploaded_file.filename or "uploaded.csv"
         raw = uploaded_file.read()
         try:
             text = raw.decode("utf-8-sig")
@@ -4263,14 +4497,17 @@ def import_words():
         reader = csv.DictReader(io.StringIO(text))
         imported_count = 0
         skipped_count = 0
+        invalid_count = 0
 
         conn = get_db_connection()
+        batch_id = create_import_batch(conn, original_filename, current_user_id())
 
         for row in reader:
             english = (row.get("english") or row.get("英単語") or "").strip()
             japanese = (row.get("japanese") or row.get("日本語") or "").strip()
 
             if not english or not japanese:
+                invalid_count += 1
                 continue
 
             example = (row.get("example") or row.get("例文") or "").strip()
@@ -4296,17 +4533,53 @@ def import_words():
 
             conn.execute(
                 """
-                INSERT INTO words (english, japanese, example, memo, audio_text, category, level, favorite, created_by_user_id, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+                INSERT INTO words (
+                    english,
+                    japanese,
+                    example,
+                    memo,
+                    audio_text,
+                    category,
+                    part_of_speech,
+                    level,
+                    favorite,
+                    created_by_user_id,
+                    import_batch_id,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
                 """,
-                (english, japanese, example, memo, audio_text, category, level, current_user_id(), now_text(), now_text()),
+                (
+                    english,
+                    japanese,
+                    example,
+                    memo,
+                    audio_text,
+                    category,
+                    part_of_speech,
+                    level,
+                    current_user_id(),
+                    batch_id,
+                    now_text(),
+                    now_text(),
+                ),
             )
             imported_count += 1
 
+        update_import_batch_counts(conn, batch_id, imported_count, skipped_count, invalid_count)
         conn.commit()
         conn.close()
 
-        return render_template("import_result.html", imported_count=imported_count, skipped_count=skipped_count, error=None)
+        return render_template(
+            "import_result.html",
+            imported_count=imported_count,
+            skipped_count=skipped_count,
+            invalid_count=invalid_count,
+            batch_id=batch_id,
+            filename=original_filename,
+            error=None,
+        )
 
     return render_template("import_words.html")
 

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}CSV取り込み詳細 - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+{% set batch = detail["batch"] %}
+{% set words = detail["words"] %}
+
+<section class="ranking-hero card admin-hero">
+    <div class="ranking-hero-text">
+        <p class="eyebrow">Import batch</p>
+        <h1>Batch {{ batch["id"] }}</h1>
+        <p class="lead small-lead">{{ batch["filename"] }}</p>
+    </div>
+    <img class="ranking-hero-cat" src="{{ url_for('static', filename=cat_image('study')) }}" alt="取り込み詳細">
+</section>
+
+{% if request.args.get("error") == "confirm" %}
+<section class="card mini-card warning-card">
+    <p class="muted">削除するには確認欄にバッチID「{{ batch["id"] }}」を入力してください。</p>
+</section>
+{% endif %}
+
+<section class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-label">バッチID</span>
+        <strong>{{ batch["id"] }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">追加件数</span>
+        <strong>{{ batch["imported_count"] }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">現在残っている単語</span>
+        <strong>{{ detail["current_word_count"] }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">状態</span>
+        <strong>{{ batch["status"] }}</strong>
+    </div>
+</section>
+
+<section class="card admin-panel">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Batch info</p>
+            <h2>取り込み情報</h2>
+        </div>
+    </div>
+    <div class="batch-detail-grid">
+        <div><span>ファイル名</span><strong>{{ batch["filename"] }}</strong></div>
+        <div><span>取り込み日時</span><strong>{{ batch["created_at"] }}</strong></div>
+        <div><span>実行者</span><strong>{{ batch["created_by"] }}</strong></div>
+        <div><span>重複スキップ</span><strong>{{ batch["skipped_count"] }}</strong></div>
+        <div><span>無効行</span><strong>{{ batch["invalid_count"] }}</strong></div>
+        {% if batch["status"] == "deleted" %}
+            <div><span>削除日時</span><strong>{{ batch["deleted_at"] }}</strong></div>
+            <div><span>削除件数</span><strong>{{ batch["deleted_count"] }}</strong></div>
+        {% endif %}
+    </div>
+</section>
+
+{% if batch["status"] != "deleted" and detail["current_word_count"] > 0 %}
+<section class="card admin-panel danger-zone">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Delete this batch</p>
+            <h2>このCSVで追加した単語だけ削除</h2>
+        </div>
+    </div>
+
+    <p class="muted">Batch {{ batch["id"] }} で追加された単語だけを削除します。別のCSVや手入力の単語は削除しません。ただし、削除対象単語に紐づく学習履歴・お気に入りは一緒に削除されます。</p>
+
+    <form method="POST" action="{{ url_for('admin_delete_import_batch', batch_id=batch['id']) }}" class="form danger-form" onsubmit="return confirm('Batch {{ batch["id"] }} の単語を削除しますか？この操作は戻せません。');">
+        <label>
+            確認入力：バッチIDを入力
+            <input type="text" name="confirm_batch_id" placeholder="{{ batch['id'] }}">
+        </label>
+        <button class="button danger" type="submit">Batch {{ batch["id"] }} の単語を削除</button>
+    </form>
+</section>
+{% endif %}
+
+<section class="card admin-panel">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Words</p>
+            <h2>このCSVで追加された単語</h2>
+        </div>
+        <span class="ranking-count">最大500件表示</span>
+    </div>
+
+    {% if words %}
+        <div class="bulk-word-list">
+            {% for word in words %}
+                <div class="bulk-word-row">
+                    <div>
+                        <strong>{{ word["english"] }}</strong>
+                        <span>{{ word["japanese"] }}</span>
+                        <small>{{ word["category"] or "未分類" }} / Lv.{{ word["level"] }} / {{ part_of_speech_label(word["part_of_speech"]) }}</small>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">このバッチに紐づく単語は残っていません。</p>
+    {% endif %}
+</section>
+
+<section class="card mini-card">
+    <div class="hero-actions">
+        <a class="button secondary" href="{{ url_for('admin_import_batches') }}">CSV取り込み履歴へ</a>
+        <a class="button secondary" href="{{ url_for('admin_words') }}">単語一括削除へ</a>
+        <a class="button primary" href="{{ url_for('import_words') }}">CSVインポート</a>
+    </div>
+</section>
+{% endblock %}

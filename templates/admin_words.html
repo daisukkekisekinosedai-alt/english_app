@@ -41,9 +41,46 @@
         <strong>{{ total_words }}</strong>
     </div>
     <div class="stat-card">
+        <span class="stat-label">CSV由来</span>
+        <strong>{{ imported_words }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">手入力/旧データ</span>
+        <strong>{{ manual_words }}</strong>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">有効CSVバッチ</span>
+        <strong>{{ active_batches }}</strong>
+    </div>
+    <div class="stat-card">
         <span class="stat-label">カテゴリ数</span>
         <strong>{{ categories|length }}</strong>
     </div>
+</section>
+
+<section class="card admin-panel import-batch-summary">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">CSV batch control</p>
+            <h2>CSV取り込み単位で管理</h2>
+            <p class="muted">1回目、2回目、3回目のようにCSVアップロード履歴を管理し、特定の回だけ削除できます。</p>
+        </div>
+        <a class="button primary small" href="{{ url_for('admin_import_batches') }}">CSV取り込み履歴</a>
+    </div>
+
+    {% if recent_batches %}
+        <div class="import-batch-mini-list">
+            {% for batch in recent_batches %}
+                <a class="import-batch-mini {% if batch['status'] == 'deleted' %}deleted{% endif %}" href="{{ url_for('admin_import_batch_detail', batch_id=batch['id']) }}">
+                    <strong>Batch {{ batch["id"] }}</strong>
+                    <span>{{ batch["filename"] }}</span>
+                    <small>現在 {{ batch["current_word_count"] }}件 / status: {{ batch["status"] }}</small>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">まだCSV取り込み履歴はありません。</p>
+    {% endif %}
 </section>
 
 <section class="card admin-panel danger-zone">
@@ -118,7 +155,10 @@
                         <div>
                             <strong>{{ word["english"] }}</strong>
                             <span>{{ word["japanese"] }}</span>
-                            <small>{{ word["category"] or "未分類" }} / Lv.{{ word["level"] }}</small>
+                            <small>
+                                {{ word["category"] or "未分類" }} / Lv.{{ word["level"] }}
+                                {% if word["import_batch_id"] %} / Batch {{ word["import_batch_id"] }}{% else %} / 手入力・旧データ{% endif %}
+                            </small>
                         </div>
                     </label>
                 {% endfor %}
@@ -134,6 +174,7 @@
         <a class="button secondary" href="{{ url_for('admin_users') }}">ユーザー管理へ</a>
         <a class="button secondary" href="{{ url_for('words') }}">単語一覧へ</a>
         <a class="button primary" href="{{ url_for('import_words') }}">CSVインポート</a>
+        <a class="button secondary" href="{{ url_for('admin_import_batches') }}">CSV取り込み履歴</a>
     </div>
 </section>
 {% endblock %}

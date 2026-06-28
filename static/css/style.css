@@ -4051,3 +4051,168 @@ textarea:focus {
         flex-direction: column;
     }
 }
+
+
+
+
+/* =========================================================
+   v20 CSV import batches
+   ========================================================= */
+
+.import-result-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    justify-content: center;
+    margin: 1rem 0;
+}
+
+.import-result-meta span,
+.batch-detail-grid div {
+    border: 1px solid #ffd8ea;
+    background: #fff7fb;
+    border-radius: 18px;
+    padding: 0.7rem 0.9rem;
+    color: #6f3b55;
+    font-weight: 700;
+}
+
+.import-note-card {
+    background: linear-gradient(135deg, #fff7fb, #f5edff);
+}
+
+.import-batch-list {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.import-batch-row {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid #ffd8ea;
+    border-radius: 24px;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(255, 143, 189, 0.08);
+}
+
+.import-batch-row.deleted,
+.import-batch-mini.deleted {
+    opacity: 0.62;
+    filter: grayscale(0.3);
+}
+
+.batch-id-box {
+    width: 74px;
+    height: 74px;
+    display: grid;
+    place-items: center;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #ff8fbd, #c28cff);
+    color: #fff;
+}
+
+.batch-id-box span {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.batch-id-box strong {
+    font-size: 1.55rem;
+    line-height: 1;
+}
+
+.batch-main strong {
+    color: #3d2734;
+    font-size: 1.05rem;
+}
+
+.batch-main p {
+    margin: 0.25rem 0;
+    color: #6f3b55;
+    font-weight: 700;
+}
+
+.batch-main small {
+    display: block;
+    color: #8d6378;
+    margin-top: 0.2rem;
+}
+
+.batch-actions {
+    display: grid;
+    gap: 0.5rem;
+    justify-items: end;
+}
+
+.muted-tag {
+    background: #eee;
+    color: #777;
+}
+
+.batch-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.batch-detail-grid div {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.batch-detail-grid span {
+    color: #8d6378;
+    font-size: 0.82rem;
+}
+
+.batch-detail-grid strong {
+    color: #3d2734;
+}
+
+.import-batch-summary {
+    background: linear-gradient(135deg, #fff9fc, #f5efff);
+}
+
+.import-batch-mini-list {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.import-batch-mini {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.85rem;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid #ffd8ea;
+    text-decoration: none;
+    color: inherit;
+}
+
+.import-batch-mini strong {
+    color: #92275d;
+}
+
+.import-batch-mini span {
+    color: #3d2734;
+    font-weight: 700;
+}
+
+.import-batch-mini small {
+    color: #8d6378;
+}
+
+@media (max-width: 720px) {
+    .import-batch-row,
+    .batch-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .batch-actions {
+        justify-items: start;
+    }
+}

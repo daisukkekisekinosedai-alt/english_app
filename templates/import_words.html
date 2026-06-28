@@ -6,7 +6,7 @@
 <section class="card">
     <p class="eyebrow">Import</p>
     <h1>CSVインポート</h1>
-    <p class="lead small-lead">CSVから単語をまとめて追加できます。Excelで作ってCSV保存してもOKです。</p>
+    <p class="lead small-lead">CSVから単語をまとめて追加できます。取り込みごとにバッチIDを付けるので、あとから「2回目だけ削除」ができます。</p>
 
     <form method="POST" enctype="multipart/form-data" class="form">
         <label>
@@ -18,9 +18,20 @@
 
     <div class="api-list">
         <code>english,japanese,example,memo,audio_text,category,level,part_of_speech</code>
-        <code>This is a pen.,これはペンです,This is a pen.,冠詞aは弱く読む,This is uh pen.,日常,1</code>
+        <code>This is a pen.,これはペンです,This is a pen.,冠詞aは弱く読む,This is uh pen.,日常,1,noun</code>
     </div>
 
     <p class="muted">日本語ヘッダ「英単語,日本語,例文,メモ,音声用テキスト,カテゴリ,レベル,品詞」でも取り込めます。品詞は空欄でも自動判定します。</p>
+
+    <div class="hero-actions">
+        <a class="button secondary" href="{{ url_for('admin_import_batches') }}">CSV取り込み履歴を見る</a>
+        <a class="button secondary" href="{{ url_for('admin_words') }}">単語一括削除へ</a>
+    </div>
+</section>
+
+<section class="card import-note-card">
+    <p class="eyebrow">Batch delete</p>
+    <h2>取り込み単位で削除できます</h2>
+    <p class="muted">例: 1回目、2回目、3回目のCSV取り込みがある場合、2回目で追加された単語だけを削除できます。手入力単語や別のCSVで入れた単語は巻き込みません。</p>
 </section>
 {% endblock %}

@@ -12,12 +12,22 @@
     {% else %}
         <div class="score-big">{{ imported_count }}</div>
         <p class="lead">件の単語を追加しました。</p>
-        <p class="muted">重複スキップ: {{ skipped_count or 0 }}件</p>
+        <div class="import-result-meta">
+            <span>CSV: {{ filename }}</span>
+            <span>バッチID: {{ batch_id }}</span>
+            <span>重複スキップ: {{ skipped_count or 0 }}件</span>
+            <span>無効行: {{ invalid_count or 0 }}件</span>
+        </div>
+        <p class="muted">このCSVで追加した単語は、あとからバッチID単位で削除できます。</p>
     {% endif %}
 
     <div class="hero-actions">
         <a class="button primary" href="{{ url_for('words') }}">単語一覧へ</a>
         <a class="button secondary" href="{{ url_for('import_words') }}">もう一度取り込む</a>
+        <a class="button secondary" href="{{ url_for('admin_import_batches') }}">CSV取り込み履歴へ</a>
+        {% if batch_id %}
+            <a class="button secondary" href="{{ url_for('admin_import_batch_detail', batch_id=batch_id) }}">今回の取り込みを見る</a>
+        {% endif %}
     </div>
 </section>
 {% endblock %}

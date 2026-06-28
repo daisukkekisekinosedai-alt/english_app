@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}CSV取り込み履歴 - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="ranking-hero card admin-hero">
+    <div class="ranking-hero-text">
+        <p class="eyebrow">Master only</p>
+        <h1>CSV取り込み履歴</h1>
+        <p class="lead small-lead">CSVアップロード単位で単語を管理します。間違えて入れたCSVだけをあとから削除できます。</p>
+    </div>
+    <img class="ranking-hero-cat" src="{{ url_for('static', filename=cat_image('study')) }}" alt="CSV管理をする子猫">
+</section>
+
+{% if request.args.get("deleted_batch") %}
+<section class="card mini-card success-card">
+    <p class="muted">バッチID {{ request.args.get("deleted_batch") }} の単語を {{ request.args.get("deleted_count") }} 件削除しました。</p>
+</section>
+{% endif %}
+
+{% if request.args.get("error") == "not_found" %}
+<section class="card mini-card warning-card">
+    <p class="muted">指定したCSV取り込み履歴が見つかりません。</p>
+</section>
+{% endif %}
+
+<section class="card admin-panel">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Import batches</p>
+            <h2>アップロード履歴</h2>
+        </div>
+        <a class="button primary small" href="{{ url_for('import_words') }}">CSVを取り込む</a>
+    </div>
+
+    {% if batches %}
+        <div class="import-batch-list">
+            {% for batch in batches %}
+                <article class="import-batch-row {% if batch['status'] == 'deleted' %}deleted{% endif %}">
+                    <div class="batch-id-box">
+                        <span>Batch</span>
+                        <strong>{{ batch["id"] }}</strong>
+                    </div>
+                    <div class="batch-main">
+                        <strong>{{ batch["filename"] }}</strong>
+                        <p>
+                            追加 {{ batch["imported_count"] }}件 /
+                            現在 {{ batch["current_word_count"] }}件 /
+                            重複 {{ batch["skipped_count"] }}件 /
+                            無効 {{ batch["invalid_count"] }}件
+                        </p>
+                        <small>{{ batch["created_at"] }} / {{ batch["created_by"] }}</small>
+                        {% if batch["status"] == "deleted" %}
+                            <small>削除済み: {{ batch["deleted_at"] }} / 削除 {{ batch["deleted_count"] }}件</small>
+                        {% endif %}
+                    </div>
+                    <div class="batch-actions">
+                        <span class="tag {% if batch['status'] == 'deleted' %}muted-tag{% endif %}">{{ batch["status"] }}</span>
+                        <a class="button secondary small" href="{{ url_for('admin_import_batch_detail', batch_id=batch['id']) }}">詳細</a>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">まだCSV取り込み履歴はありません。</p>
+    {% endif %}
+</section>
+
+<section class="card mini-card">
+    <div class="hero-actions">
+        <a class="button secondary" href="{{ url_for('admin_words') }}">単語一括削除へ</a>
+        <a class="button secondary" href="{{ url_for('words') }}">単語一覧へ</a>
+    </div>
+</section>
+{% endblock %}
