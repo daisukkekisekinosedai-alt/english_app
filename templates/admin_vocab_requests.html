@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}追加単語リクエスト - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="ranking-hero card admin-hero">
+    <div class="ranking-hero-text">
+        <p class="eyebrow">Master only</p>
+        <h1>追加単語リクエスト</h1>
+        <p class="lead small-lead">ユーザーから届いた追加単語・カテゴリ要望を確認します。</p>
+    </div>
+    <img class="ranking-hero-cat" src="{{ url_for('static', filename=cat_image('study')) }}" alt="単語リクエスト">
+</section>
+
+<section class="stats-grid">
+    <div class="stat-card"><span class="stat-label">open</span><strong>{{ counts["open"] }}</strong></div>
+    <div class="stat-card"><span class="stat-label">added</span><strong>{{ counts["added"] }}</strong></div>
+    <div class="stat-card"><span class="stat-label">rejected</span><strong>{{ counts["rejected"] }}</strong></div>
+</section>
+
+<section class="card admin-panel">
+    <div class="hero-actions">
+        <a class="button {% if status == 'open' %}primary{% else %}secondary{% endif %}" href="{{ url_for('admin_vocab_requests', status='open') }}">open</a>
+        <a class="button {% if status == 'added' %}primary{% else %}secondary{% endif %}" href="{{ url_for('admin_vocab_requests', status='added') }}">added</a>
+        <a class="button {% if status == 'rejected' %}primary{% else %}secondary{% endif %}" href="{{ url_for('admin_vocab_requests', status='rejected') }}">rejected</a>
+        <a class="button {% if status == 'all' %}primary{% else %}secondary{% endif %}" href="{{ url_for('admin_vocab_requests', status='all') }}">all</a>
+    </div>
+
+    {% if requests %}
+        <div class="feedback-admin-list">
+            {% for item in requests %}
+                <article class="feedback-admin-row {% if item['status'] != 'open' %}closed{% endif %}">
+                    <div>
+                        <strong>{% if item["english"] %}{{ item["english"] }}{% else %}単語指定なし{% endif %}</strong>
+                        {% if item["japanese_hint"] %}
+                            <p>{{ item["japanese_hint"] }}</p>
+                        {% endif %}
+                        {% if item["detail"] %}
+                            <p class="feedback-detail">{{ item["detail"] }}</p>
+                        {% endif %}
+                        <small>
+                            依頼者: {{ item["requester_name"] or "unknown" }} /
+                            {{ item["created_at"] }}
+                            {% if item["handled_at"] %} / 対応: {{ item["handled_at"] }}{% endif %}
+                        </small>
+                    </div>
+
+                    <div class="batch-actions">
+                        <span class="tag {% if item['status'] == 'open' %}warning-tag{% endif %}">{{ item["status"] }}</span>
+                        {% if item["status"] == "open" %}
+                            <form method="POST" action="{{ url_for('admin_handle_vocab_request', request_id=item['id']) }}" class="inline-handle-form">
+                                <input type="text" name="note" placeholder="対応メモ">
+                                <button class="button primary small" type="submit" name="action" value="added">追加済み</button>
+                                <button class="button danger small" type="submit" name="action" value="rejected">却下</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">該当するリクエストはありません。</p>
+    {% endif %}
+</section>
+
+<section class="card mini-card">
+    <div class="hero-actions">
+        <a class="button secondary" href="{{ url_for('admin_word_reports') }}">単語改善依頼へ</a>
+        <a class="button secondary" href="{{ url_for('add_word') }}">単語追加へ</a>
+        <a class="button secondary" href="{{ url_for('import_words') }}">CSVインポートへ</a>
+    </div>
+</section>
+{% endblock %}

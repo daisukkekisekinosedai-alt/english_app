@@ -67,6 +67,9 @@
                         <span class="tag">{{ word["category"] }}</span>
                     <span class="tag">{{ part_of_speech_label(word["part_of_speech"]) }}</span>
                         <span class="tag">Lv.{{ word["level"] }}</span>
+                        {% if is_master and word["open_report_count"] %}
+                            <span class="tag warning-tag">改善依頼 {{ word["open_report_count"] }}</span>
+                        {% endif %}
                     </div>
                     {% if word["audio_file"] %}
                         <audio controls preload="none" src="{{ url_for('static', filename=word['audio_file']) }}"></audio>

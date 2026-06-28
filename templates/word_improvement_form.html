@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}単語の改善依頼 - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="card feedback-hero">
+    <p class="eyebrow">Word feedback</p>
+    <h1>単語の改善依頼</h1>
+    <p class="lead small-lead">この単語が不要・訳がおかしい・似た語ばかりなどの場合、masterに改善依頼できます。</p>
+</section>
+
+<section class="card feedback-word-card">
+    <p class="eyebrow">Target word</p>
+    <h2>{{ word["english"] }}</h2>
+    <p class="lead small-lead">{{ word["japanese"] }}</p>
+    {% if word["example"] %}
+        <p class="example">{{ word["example"] }}</p>
+    {% endif %}
+    <div class="tag-list">
+        <span class="tag">{{ word["category"] or "未分類" }}</span>
+        <span class="tag">Lv.{{ word["level"] }}</span>
+        <span class="tag">{{ part_of_speech_label(word["part_of_speech"]) }}</span>
+        {% if word["open_report_count"] %}
+            <span class="tag warning-tag">改善依頼 {{ word["open_report_count"] }}件</span>
+        {% endif %}
+    </div>
+</section>
+
+<section class="card">
+    <h2>改善内容を送る</h2>
+    <p class="muted">送信後、この単語はmasterが確認・修正するまで通常ユーザーの問題に出なくなります。</p>
+
+    <form method="POST" class="form">
+        <label>
+            理由
+            <select name="reason" required>
+                <option value="duplicate_or_variant">似た単語・過去形/派生語が多い</option>
+                <option value="bad_translation">日本語訳がおかしい</option>
+                <option value="bad_example">例文がおかしい</option>
+                <option value="not_needed">TOEIC学習に不要そう</option>
+                <option value="too_easy">簡単すぎる</option>
+                <option value="too_hard">難しすぎる/マニアックすぎる</option>
+                <option value="other">その他</option>
+            </select>
+        </label>
+
+        <label>
+            詳細
+            <textarea name="detail" rows="5" placeholder="例：abandon / abandoned / abandoning のような同じ単語の派生が多すぎる。これは削ってよさそう。"></textarea>
+        </label>
+
+        <button class="button primary" type="submit">改善依頼を送る</button>
+    </form>
+</section>
+
+<section class="card mini-card">
+    <div class="hero-actions">
+        <a class="button secondary" href="{{ url_for('words') }}">単語一覧へ</a>
+        <a class="button secondary" href="{{ url_for('vocab_request_form') }}">追加単語をリクエスト</a>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}単語改善依頼 - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="ranking-hero card admin-hero">
+    <div class="ranking-hero-text">
+        <p class="eyebrow">Master only</p>
+        <h1>単語改善依頼</h1>
+        <p class="lead small-lead">ユーザーから報告された不要/不自然な単語を確認します。open中の単語は通常問題に出ません。</p>
+    </div>
+    <img class="ranking-hero-cat" src="{{ url_for('static', filename=cat_image('study')) }}" alt="改善依頼">
+</section>
+
+<section class="stats-grid">
+    <div class="stat-card"><span class="stat-label">open</span><strong>{{ counts["open"] }}</strong></div>
+    <div class="stat-card"><span class="stat-label">resolved</span><strong>{{ counts["resolved"] }}</strong></div>
+    <div class="stat-card"><span class="stat-label">rejected</span><strong>{{ counts["rejected"] }}</strong></div>
+</section>
+
+<section class="card admin-panel">
+    <div class="hero-actions">
+        <a class="button {% if status == 'open' %}primary{% else %}secondary{% endif %}" href="{{ url_for('admin_word_reports', status='open') }}">open</a>
+        <a class="button {% if status == 'resolved' %}primary{% else %}secondary{% endif %}" href="{{ url_for('admin_word_reports', status='resolved') }}">resolved</a>
+        <a class="button {% if status == 'rejected' %}primary{% else %}secondary{% endif %}" href="{{ url_for('admin_word_reports', status='rejected') }}">rejected</a>
+        <a class="button {% if status == 'all' %}primary{% else %}secondary{% endif %}" href="{{ url_for('admin_word_reports', status='all') }}">all</a>
+    </div>
+
+    {% if reports %}
+        <div class="feedback-admin-list">
+            {% for report in reports %}
+                <article class="feedback-admin-row {% if report['status'] != 'open' %}closed{% endif %}">
+                    <div>
+                        <strong>{{ report["english"] }}</strong>
+                        <p>{{ report["japanese"] }}</p>
+                        <small>
+                            理由: {{ report["reason"] }} /
+                            報告者: {{ report["reporter_name"] or "unknown" }} /
+                            {{ report["created_at"] }}
+                        </small>
+                        {% if report["detail"] %}
+                            <p class="feedback-detail">{{ report["detail"] }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="batch-actions">
+                        <span class="tag {% if report['status'] == 'open' %}warning-tag{% endif %}">{{ report["status"] }}</span>
+                        <a class="button secondary small" href="{{ url_for('admin_word_report_detail', report_id=report['id']) }}">詳細</a>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">該当する改善依頼はありません。</p>
+    {% endif %}
+</section>
+{% endblock %}

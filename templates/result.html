@@ -47,6 +47,10 @@
         <p><span>正解</span>{{ word["japanese"] }}</p>
     </div>
 
+    <div class="word-feedback-actions">
+        <a class="button ghost small" href="{{ url_for('report_word_improvement', word_id=word['id']) }}">この単語を改善依頼</a>
+    </div>
+
     {% if word["example"] %}
         <p class="example">{{ word["example"] }}</p>
     {% endif %}

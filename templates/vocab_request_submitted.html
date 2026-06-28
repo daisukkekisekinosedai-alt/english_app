@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}単語リクエスト送信完了 - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="result-card correct">
+    <p class="eyebrow">Request sent</p>
+    <h1>リクエストを送信しました</h1>
+    {% if english %}
+        <p class="lead">「{{ english }}」の追加リクエストをmasterに送りました。</p>
+    {% else %}
+        <p class="lead">追加単語のリクエストをmasterに送りました。</p>
+    {% endif %}
+
+    <div class="hero-actions">
+        <a class="button primary" href="{{ url_for('index') }}">ホームへ</a>
+        <a class="button secondary" href="{{ url_for('vocab_request_form') }}">もう一件送る</a>
+    </div>
+</section>
+{% endblock %}

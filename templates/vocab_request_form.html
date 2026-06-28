@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}追加単語リクエスト - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="card feedback-hero">
+    <p class="eyebrow">Vocabulary request</p>
+    <h1>追加してほしい単語をリクエスト</h1>
+    <p class="lead small-lead">欲しい単語やカテゴリをmasterに送れます。masterだけが内容を確認できます。</p>
+</section>
+
+{% if error %}
+<section class="card mini-card warning-card">
+    <p class="muted">{{ error }}</p>
+</section>
+{% endif %}
+
+<section class="card">
+    <form method="POST" class="form">
+        <label>
+            追加してほしい英単語
+            <input type="text" name="english" placeholder="例：procurement">
+        </label>
+
+        <label>
+            日本語の意味・ヒント
+            <input type="text" name="japanese_hint" placeholder="例：調達、購買">
+        </label>
+
+        <label>
+            補足
+            <textarea name="detail" rows="6" placeholder="例：調達・物流カテゴリの単語をもっと増やしてほしい。TOEICのビジネス文脈で出そうなもの。"></textarea>
+        </label>
+
+        <button class="button primary" type="submit">リクエストを送る</button>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}単語改善依頼詳細 - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="card feedback-hero">
+    <p class="eyebrow">Word report detail</p>
+    <h1>{{ report["english"] }}</h1>
+    <p class="lead small-lead">{{ report["japanese"] }}</p>
+    <div class="tag-list">
+        <span class="tag">{{ report["category"] or "未分類" }}</span>
+        <span class="tag">Lv.{{ report["level"] }}</span>
+        <span class="tag">{{ part_of_speech_label(report["part_of_speech"]) }}</span>
+        <span class="tag warning-tag">{{ report["status"] }}</span>
+    </div>
+</section>
+
+<section class="card admin-panel">
+    <h2>報告内容</h2>
+    <div class="batch-detail-grid">
+        <div><span>理由</span><strong>{{ report["reason"] }}</strong></div>
+        <div><span>報告者</span><strong>{{ report["reporter_name"] or "unknown" }}</strong></div>
+        <div><span>報告日時</span><strong>{{ report["created_at"] }}</strong></div>
+        <div><span>ステータス</span><strong>{{ report["status"] }}</strong></div>
+    </div>
+    {% if report["detail"] %}
+        <p class="feedback-detail">{{ report["detail"] }}</p>
+    {% endif %}
+</section>
+
+<section class="card admin-panel">
+    <h2>単語情報</h2>
+    <div class="api-list">
+        <code>english: {{ report["english"] }}</code>
+        <code>japanese: {{ report["japanese"] }}</code>
+        <code>example: {{ report["example"] or "" }}</code>
+        <code>memo: {{ report["memo"] or "" }}</code>
+    </div>
+
+    <div class="hero-actions">
+        <a class="button primary" href="{{ url_for('edit_word', word_id=report['word_id']) }}">この単語を編集する</a>
+        <a class="button secondary" href="{{ url_for('words', q=report['english']) }}">似た単語を検索</a>
+    </div>
+</section>
+
+{% if report["status"] == "open" %}
+<section class="card admin-panel danger-zone">
+    <h2>対応完了にする</h2>
+    <p class="muted">修正が終わったら resolved にしてください。同じ単語へのopen報告をまとめて閉じ、通常問題に戻します。不要判定なら単語編集画面や一括削除で削除してください。</p>
+
+    <form method="POST" action="{{ url_for('admin_resolve_word_report', report_id=report['id']) }}" class="form">
+        <label>
+            対応メモ
+            <textarea name="resolution_note" rows="4" placeholder="例：日本語訳を修正済み。派生語として必要なので残す。"></textarea>
+        </label>
+        <div class="hero-actions">
+            <button class="button primary" type="submit" name="action" value="resolved">修正済みにして出題再開</button>
+            <button class="button danger" type="submit" name="action" value="rejected">却下して出題再開</button>
+        </div>
+    </form>
+</section>
+{% endif %}
+
+<section class="card admin-panel">
+    <h2>同じ単語への報告</h2>
+    {% if same_word_reports %}
+        <div class="log-list">
+            {% for item in same_word_reports %}
+                <div class="log-row">
+                    <div>
+                        <strong>{{ item["reason"] }} / {{ item["status"] }}</strong>
+                        <p>{{ item["detail"] or "詳細なし" }}</p>
+                        <small>{{ item["created_at"] }} / {{ item["reporter_name"] or "unknown" }}</small>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+
+<section class="card mini-card">
+    <div class="hero-actions">
+        <a class="button secondary" href="{{ url_for('admin_word_reports') }}">改善依頼一覧へ</a>
+        <a class="button secondary" href="{{ url_for('admin_vocab_requests') }}">単語リクエストへ</a>
+    </div>
+</section>
+{% endblock %}

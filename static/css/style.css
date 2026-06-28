@@ -4293,3 +4293,89 @@ textarea:focus {
         grid-template-columns: 1fr;
     }
 }
+
+
+
+
+/* =========================================================
+   v23 User feedback + vocabulary requests
+   ========================================================= */
+
+.feedback-hero {
+    background:
+        radial-gradient(circle at top right, rgba(255, 216, 234, 0.85), transparent 12rem),
+        linear-gradient(135deg, #fff9fc, #f5efff);
+}
+
+.feedback-word-card h2 {
+    font-size: clamp(2rem, 6vw, 4rem);
+    margin: 0.3rem 0;
+    color: #5c2740;
+}
+
+.word-feedback-actions {
+    display: flex;
+    justify-content: center;
+    margin: 0.8rem 0 0.2rem;
+}
+
+.warning-tag {
+    background: #fff1c7 !important;
+    color: #9a6200 !important;
+    border-color: #ffd26f !important;
+}
+
+.feedback-admin-list {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.feedback-admin-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: start;
+    padding: 1rem;
+    border-radius: 22px;
+    border: 1px solid #ffd8ea;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(255, 143, 189, 0.08);
+}
+
+.feedback-admin-row.closed {
+    opacity: 0.72;
+}
+
+.feedback-admin-row strong {
+    color: #3d2734;
+    font-size: 1.08rem;
+}
+
+.feedback-detail {
+    margin-top: 0.65rem;
+    padding: 0.8rem;
+    border-radius: 16px;
+    background: #fff7fb;
+    color: #6f3b55;
+    white-space: pre-wrap;
+}
+
+.inline-handle-form {
+    display: grid;
+    gap: 0.45rem;
+    min-width: 220px;
+}
+
+.inline-handle-form input {
+    min-width: 180px;
+}
+
+@media (max-width: 720px) {
+    .feedback-admin-row {
+        grid-template-columns: 1fr;
+    }
+
+    .inline-handle-form {
+        min-width: 0;
+    }
+}

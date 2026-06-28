@@ -41,6 +41,10 @@
         <span class="tag">Lv.{{ word["level"] }}</span>
     </div>
 
+    <div class="word-feedback-actions">
+        <a class="button ghost small" href="{{ url_for('report_word_improvement', word_id=word['id']) }}">この単語を改善依頼</a>
+    </div>
+
     <form method="POST" action="{{ url_for('answer') }}" class="quiz-form">
         <input type="hidden" name="word_id" value="{{ word['id'] }}">
         <input type="hidden" name="mode" value="listen">

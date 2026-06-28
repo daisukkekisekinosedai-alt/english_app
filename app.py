@@ -422,6 +422,57 @@ def init_db() -> None:
         """
     )
 
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS word_improvement_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            word_id INTEGER NOT NULL,
+            user_id INTEGER,
+            reason TEXT DEFAULT 'other',
+            detail TEXT DEFAULT '',
+            status TEXT DEFAULT 'open',
+            created_at TEXT NOT NULL,
+            resolved_at TEXT DEFAULT '',
+            resolved_by_user_id INTEGER,
+            resolution_note TEXT DEFAULT '',
+            FOREIGN KEY (word_id) REFERENCES words(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vocab_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            english TEXT DEFAULT '',
+            japanese_hint TEXT DEFAULT '',
+            detail TEXT DEFAULT '',
+            status TEXT DEFAULT 'open',
+            created_at TEXT NOT NULL,
+            handled_at TEXT DEFAULT '',
+            handled_by_user_id INTEGER,
+            note TEXT DEFAULT '',
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+
+    ensure_column(conn, "word_improvement_reports", "reason", "reason TEXT DEFAULT 'other'")
+    ensure_column(conn, "word_improvement_reports", "detail", "detail TEXT DEFAULT ''")
+    ensure_column(conn, "word_improvement_reports", "status", "status TEXT DEFAULT 'open'")
+    ensure_column(conn, "word_improvement_reports", "resolved_at", "resolved_at TEXT DEFAULT ''")
+    ensure_column(conn, "word_improvement_reports", "resolved_by_user_id", "resolved_by_user_id INTEGER")
+    ensure_column(conn, "word_improvement_reports", "resolution_note", "resolution_note TEXT DEFAULT ''")
+    ensure_column(conn, "vocab_requests", "english", "english TEXT DEFAULT ''")
+    ensure_column(conn, "vocab_requests", "japanese_hint", "japanese_hint TEXT DEFAULT ''")
+    ensure_column(conn, "vocab_requests", "detail", "detail TEXT DEFAULT ''")
+    ensure_column(conn, "vocab_requests", "status", "status TEXT DEFAULT 'open'")
+    ensure_column(conn, "vocab_requests", "handled_at", "handled_at TEXT DEFAULT ''")
+    ensure_column(conn, "vocab_requests", "handled_by_user_id", "handled_by_user_id INTEGER")
+    ensure_column(conn, "vocab_requests", "note", "note TEXT DEFAULT ''")
+
     ensure_column(conn, "import_batches", "invalid_count", "invalid_count INTEGER DEFAULT 0")
     ensure_column(conn, "import_batches", "status", "status TEXT DEFAULT 'active'")
     ensure_column(conn, "import_batches", "deleted_at", "deleted_at TEXT DEFAULT ''")
@@ -1104,8 +1155,12 @@ def get_word_learning_profiles(user_id: int | None = None) -> list[dict]:
     ).fetchall()
     conn.close()
 
+    blocked_ids = get_blocked_word_ids()
+
     profiles = []
     for row in rows:
+        if int(row["id"]) in blocked_ids:
+            continue
         attempts = int(row["attempts"] or 0)
         correct_count = int(row["correct_count"] or 0)
         wrong_count = int(row["wrong_count"] or 0)
@@ -1185,7 +1240,9 @@ def get_smart_candidate_ids(user_id: int | None = None, limit: int = 30) -> list
     if not profiles:
         return []
 
-    # バランスよく選ぶ: 復習/弱点/新規/忘却防止を混ぜる
+    # v23:
+    # 以前は score順 + english順に近く、a,b,c順や似た語が固まりやすかった。
+    # bucket別に候補を広めに取り、family/categoryを散らしてから返します。
     buckets = {
         "due": [],
         "weak": [],
@@ -1197,30 +1254,35 @@ def get_smart_candidate_ids(user_id: int | None = None, limit: int = 30) -> list
     for profile in profiles:
         buckets.setdefault(profile["bucket"], []).append(profile)
 
-    selected = []
+    for bucket_profiles in buckets.values():
+        random.shuffle(bucket_profiles)
+        bucket_profiles.sort(key=lambda item: -item.get("score", 0))
+
+    candidate_pool = []
     recipe = [
-        ("due", 4),
-        ("weak", 3),
-        ("stale", 2),
-        ("new", 3),
-        ("followup", 2),
-        ("mastered", 1),
+        ("due", 8),
+        ("weak", 7),
+        ("stale", 5),
+        ("new", 8),
+        ("followup", 5),
+        ("mastered", 3),
     ]
 
-    used = set()
+    used_pool_ids = set()
     for bucket, take in recipe:
         for profile in buckets.get(bucket, [])[:take]:
-            if profile["id"] not in used:
-                selected.append(profile)
-                used.add(profile["id"])
+            if profile["id"] not in used_pool_ids:
+                candidate_pool.append(profile)
+                used_pool_ids.add(profile["id"])
 
     for profile in profiles:
-        if len(selected) >= limit:
+        if len(candidate_pool) >= max(limit * 4, 40):
             break
-        if profile["id"] not in used:
-            selected.append(profile)
-            used.add(profile["id"])
+        if profile["id"] not in used_pool_ids:
+            candidate_pool.append(profile)
+            used_pool_ids.add(profile["id"])
 
+    selected = diversify_profiles(candidate_pool, limit)
     return [item["id"] for item in selected[:limit]]
 
 
@@ -1546,6 +1608,8 @@ def inject_current_user():
         "feature_modules": FEATURE_MODULES,
         "enabled_feature_modules": enabled_feature_modules(),
         "feature_href": feature_href,
+        "open_word_report_count": get_open_word_report_count() if is_master_user(user) else 0,
+        "open_vocab_request_count": get_open_vocab_request_count() if is_master_user(user) else 0,
     }
 
 
@@ -1890,6 +1954,146 @@ def create_test_session(user_id: int, mode: str, scope: str, total: int, correct
 
 
 
+def get_open_word_report_count() -> int:
+    conn = get_db_connection()
+    count = conn.execute(
+        "SELECT COUNT(*) AS count FROM word_improvement_reports WHERE status = 'open'"
+    ).fetchone()["count"]
+    conn.close()
+    return int(count or 0)
+
+
+def get_open_vocab_request_count() -> int:
+    conn = get_db_connection()
+    count = conn.execute(
+        "SELECT COUNT(*) AS count FROM vocab_requests WHERE status = 'open'"
+    ).fetchone()["count"]
+    conn.close()
+    return int(count or 0)
+
+
+def get_blocked_word_ids() -> set[int]:
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT DISTINCT word_id
+        FROM word_improvement_reports
+        WHERE status = 'open'
+        """
+    ).fetchall()
+    conn.close()
+    return {int(row["word_id"]) for row in rows}
+
+
+def is_word_blocked(word_id: int) -> bool:
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT 1
+        FROM word_improvement_reports
+        WHERE word_id = ?
+          AND status = 'open'
+        LIMIT 1
+        """,
+        (word_id,),
+    ).fetchone()
+    conn.close()
+    return row is not None
+
+
+def filter_available_word_ids(ids: list[int]) -> list[int]:
+    if not ids:
+        return []
+    blocked = get_blocked_word_ids()
+    return [int(word_id) for word_id in ids if int(word_id) not in blocked]
+
+
+def word_family_key(english: str | None) -> str:
+    """
+    おすすめ10問で abandoned / abandoning / reabandon のような近い語が連続しすぎるのを避けるための簡易語幹キー。
+    完璧な語源解析ではなく、出題の偏りを抑える目的です。
+    """
+    text = (english or "").strip().lower()
+    text = re.sub(r"[^a-z]", "", text)
+
+    for prefix in ("re", "non", "un", "in", "im", "ir", "dis", "mis", "pre", "post"):
+        if len(text) > len(prefix) + 5 and text.startswith(prefix):
+            text = text[len(prefix):]
+            break
+
+    suffixes = (
+        "ingly", "edly", "ation", "ition", "ization", "isation", "ability", "ibility",
+        "fulness", "lessness", "ments", "nesses", "ences", "ances", "ions", "ings",
+        "ingly", "edly", "ment", "ness", "ence", "ance", "tion", "sion", "ity",
+        "ing", "ied", "ies", "ed", "ly", "es", "s"
+    )
+    for suffix in suffixes:
+        if len(text) > len(suffix) + 4 and text.endswith(suffix):
+            text = text[:-len(suffix)]
+            break
+
+    # doubled consonant cleanup: planned -> plan, stopping -> stop
+    if len(text) >= 4 and text[-1] == text[-2] and text[-1] in "bcdfghjklmnpqrstvwxyz":
+        text = text[:-1]
+
+    return text[:8] or (english or "")
+
+
+def diversify_profiles(profiles: list[dict], limit: int) -> list[dict]:
+    if not profiles:
+        return []
+
+    # スコアが近いものを少し混ぜる。完全なa,b,c順固定を避ける。
+    by_score = sorted(profiles, key=lambda item: (-item.get("score", 0), item.get("attempts", 0)))
+    top = by_score[: max(limit * 4, 24)]
+    rest = by_score[max(limit * 4, 24):]
+    random.shuffle(top)
+
+    selected: list[dict] = []
+    used_ids: set[int] = set()
+    used_families: set[str] = set()
+    used_categories: set[str] = set()
+
+    # 1巡目: family重複を強く避ける
+    for profile in top + rest:
+        if len(selected) >= limit:
+            break
+        fid = int(profile["id"])
+        fam = word_family_key(profile.get("english"))
+        if fid in used_ids or fam in used_families:
+            continue
+        selected.append(profile)
+        used_ids.add(fid)
+        used_families.add(fam)
+        used_categories.add(profile.get("category") or "")
+
+    # 2巡目: categoryも少し散らす
+    for profile in top + rest:
+        if len(selected) >= limit:
+            break
+        fid = int(profile["id"])
+        if fid in used_ids:
+            continue
+        cat = profile.get("category") or ""
+        if cat in used_categories and len(used_categories) >= 3:
+            continue
+        selected.append(profile)
+        used_ids.add(fid)
+        used_categories.add(cat)
+
+    # 最終補完
+    for profile in top + rest:
+        if len(selected) >= limit:
+            break
+        fid = int(profile["id"])
+        if fid not in used_ids:
+            selected.append(profile)
+            used_ids.add(fid)
+
+    return selected[:limit]
+
+
+
 def word_select_sql() -> str:
     return """
         SELECT
@@ -1911,7 +2115,13 @@ def word_select_sql() -> str:
             w.updated_at,
             u.display_name AS created_by_name,
             u.username AS created_by_username,
-            u.icon_file AS created_by_icon
+            u.icon_file AS created_by_icon,
+            (
+                SELECT COUNT(*)
+                FROM word_improvement_reports r
+                WHERE r.word_id = w.id
+                  AND r.status = 'open'
+            ) AS open_report_count
         FROM words w
         LEFT JOIN users u ON u.id = w.created_by_user_id
         LEFT JOIN user_word_flags f
@@ -1928,6 +2138,9 @@ def require_user_id() -> int:
 
 
 def fetch_word(word_id: int) -> sqlite3.Row | None:
+    if not is_master_user() and is_word_blocked(word_id):
+        return None
+
     conn = get_db_connection()
     uid = current_user_id() or 0
     word = conn.execute(
@@ -1954,6 +2167,16 @@ def fetch_words(q: str = "", category: str = "", favorite_only: bool = False) ->
 
     if favorite_only:
         where.append("COALESCE(f.favorite, 0) = 1")
+
+    if not is_master_user():
+        where.append("""
+            NOT EXISTS (
+                SELECT 1
+                FROM word_improvement_reports r
+                WHERE r.word_id = w.id
+                  AND r.status = 'open'
+            )
+        """)
 
     sql = word_select_sql()
     if where:
@@ -2083,7 +2306,7 @@ def get_candidate_ids(scope: str = "all") -> list[int]:
         rows = conn.execute("SELECT id FROM words").fetchall()
 
     conn.close()
-    return [row["id"] for row in rows]
+    return filter_available_word_ids([row["id"] for row in rows])
 
 
 def get_random_word(scope: str = "all") -> sqlite3.Row | None:
@@ -2237,6 +2460,12 @@ def get_choices(correct_word: sqlite3.Row, limit: int = 4) -> list[str]:
         FROM words
         WHERE id != ?
           AND part_of_speech = ?
+          AND NOT EXISTS (
+              SELECT 1
+              FROM word_improvement_reports r
+              WHERE r.word_id = words.id
+                AND r.status = 'open'
+          )
         ORDER BY RANDOM()
         LIMIT ?
         """,
@@ -2254,6 +2483,12 @@ def get_choices(correct_word: sqlite3.Row, limit: int = 4) -> list[str]:
             FROM words
             WHERE id != ?
               AND japanese NOT IN ({placeholders})
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM word_improvement_reports r
+                  WHERE r.word_id = words.id
+                    AND r.status = 'open'
+              )
             ORDER BY RANDOM()
             LIMIT ?
             """,
@@ -3686,10 +3921,10 @@ def session_start():
         return redirect(url_for("add_word"))
 
     if scope == "smart":
+        # v23:
+        # おすすめ10問では同じような単語の水増しを避ける。
+        # 候補が足りない場合でも同じ単語を繰り返し追加しない。
         ids = candidate_ids[:count]
-        if len(ids) < count and candidate_ids:
-            while len(ids) < count:
-                ids.append(candidate_ids[len(ids) % len(candidate_ids)])
     else:
         random.shuffle(candidate_ids)
 
@@ -3697,8 +3932,7 @@ def session_start():
             ids = candidate_ids[:count]
         else:
             ids = candidate_ids[:]
-            while len(ids) < count:
-                ids.append(random.choice(candidate_ids))
+            # 通常モードでも、候補が少ない場合は重複で水増ししない。
 
     session["quiz_session"] = {
         "ids": ids,
@@ -4263,6 +4497,299 @@ def share_session(test_session_id: int):
 def cat_room():
     # v15: 猫の部屋は廃止。古いリンクから来た場合はホームへ戻します。
     return redirect(url_for("index"))
+
+
+@app.route("/words/<int:word_id>/improve", methods=["GET", "POST"])
+@login_required
+def report_word_improvement(word_id: int):
+    conn = get_db_connection()
+    uid = current_user_id()
+    word = conn.execute(
+        """
+        SELECT
+            w.*,
+            (
+                SELECT COUNT(*)
+                FROM word_improvement_reports r
+                WHERE r.word_id = w.id
+                  AND r.status = 'open'
+            ) AS open_report_count
+        FROM words w
+        WHERE w.id = ?
+        """,
+        (word_id,),
+    ).fetchone()
+
+    if word is None:
+        conn.close()
+        return redirect(url_for("words", error="not_found"))
+
+    if request.method == "POST":
+        reason = request.form.get("reason", "other").strip() or "other"
+        detail = request.form.get("detail", "").strip()
+
+        existing = conn.execute(
+            """
+            SELECT id
+            FROM word_improvement_reports
+            WHERE word_id = ?
+              AND user_id = ?
+              AND status = 'open'
+            LIMIT 1
+            """,
+            (word_id, uid),
+        ).fetchone()
+
+        if existing is None:
+            conn.execute(
+                """
+                INSERT INTO word_improvement_reports (
+                    word_id,
+                    user_id,
+                    reason,
+                    detail,
+                    status,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, 'open', ?)
+                """,
+                (word_id, uid, reason, detail, now_text()),
+            )
+            conn.commit()
+
+        conn.close()
+        return render_template("word_improvement_submitted.html", word=word)
+
+    conn.close()
+    return render_template("word_improvement_form.html", word=word)
+
+
+@app.route("/word-request", methods=["GET", "POST"])
+@login_required
+def vocab_request_form():
+    if request.method == "POST":
+        english = request.form.get("english", "").strip()
+        japanese_hint = request.form.get("japanese_hint", "").strip()
+        detail = request.form.get("detail", "").strip()
+
+        if not english and not detail:
+            return render_template("vocab_request_form.html", error="追加してほしい単語、または要望内容を入力してください。")
+
+        conn = get_db_connection()
+        conn.execute(
+            """
+            INSERT INTO vocab_requests (
+                user_id,
+                english,
+                japanese_hint,
+                detail,
+                status,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, 'open', ?)
+            """,
+            (current_user_id(), english, japanese_hint, detail, now_text()),
+        )
+        conn.commit()
+        conn.close()
+        return render_template("vocab_request_submitted.html", english=english)
+
+    return render_template("vocab_request_form.html", error=None)
+
+
+@app.route("/admin/word-reports")
+@master_required
+def admin_word_reports():
+    status = request.args.get("status", "open")
+    if status not in {"open", "resolved", "rejected", "all"}:
+        status = "open"
+
+    conn = get_db_connection()
+    params = []
+    where = ""
+    if status != "all":
+        where = "WHERE r.status = ?"
+        params.append(status)
+
+    reports = conn.execute(
+        f"""
+        SELECT
+            r.*,
+            w.english,
+            w.japanese,
+            w.category,
+            w.level,
+            w.part_of_speech,
+            u.display_name AS reporter_name,
+            u.username AS reporter_username,
+            ru.display_name AS resolved_by_name
+        FROM word_improvement_reports r
+        JOIN words w ON w.id = r.word_id
+        LEFT JOIN users u ON u.id = r.user_id
+        LEFT JOIN users ru ON ru.id = r.resolved_by_user_id
+        {where}
+        ORDER BY
+            CASE WHEN r.status = 'open' THEN 0 ELSE 1 END,
+            r.id DESC
+        """,
+        params,
+    ).fetchall()
+
+    counts = {
+        "open": conn.execute("SELECT COUNT(*) AS c FROM word_improvement_reports WHERE status = 'open'").fetchone()["c"],
+        "resolved": conn.execute("SELECT COUNT(*) AS c FROM word_improvement_reports WHERE status = 'resolved'").fetchone()["c"],
+        "rejected": conn.execute("SELECT COUNT(*) AS c FROM word_improvement_reports WHERE status = 'rejected'").fetchone()["c"],
+    }
+    conn.close()
+
+    return render_template("admin_word_reports.html", reports=reports, counts=counts, status=status)
+
+
+@app.route("/admin/word-reports/<int:report_id>")
+@master_required
+def admin_word_report_detail(report_id: int):
+    conn = get_db_connection()
+    report = conn.execute(
+        """
+        SELECT
+            r.*,
+            w.english,
+            w.japanese,
+            w.example,
+            w.memo,
+            w.audio_text,
+            w.category,
+            w.level,
+            w.part_of_speech,
+            u.display_name AS reporter_name,
+            u.username AS reporter_username
+        FROM word_improvement_reports r
+        JOIN words w ON w.id = r.word_id
+        LEFT JOIN users u ON u.id = r.user_id
+        WHERE r.id = ?
+        """,
+        (report_id,),
+    ).fetchone()
+
+    if report is None:
+        conn.close()
+        return redirect(url_for("admin_word_reports", error="not_found"))
+
+    same_word_reports = conn.execute(
+        """
+        SELECT
+            r.*,
+            u.display_name AS reporter_name
+        FROM word_improvement_reports r
+        LEFT JOIN users u ON u.id = r.user_id
+        WHERE r.word_id = ?
+        ORDER BY r.id DESC
+        """,
+        (report["word_id"],),
+    ).fetchall()
+    conn.close()
+
+    return render_template("admin_word_report_detail.html", report=report, same_word_reports=same_word_reports)
+
+
+@app.route("/admin/word-reports/<int:report_id>/resolve", methods=["POST"])
+@master_required
+def admin_resolve_word_report(report_id: int):
+    action = request.form.get("action", "resolved")
+    if action not in {"resolved", "rejected"}:
+        action = "resolved"
+    note = request.form.get("resolution_note", "").strip()
+
+    conn = get_db_connection()
+    report = conn.execute("SELECT * FROM word_improvement_reports WHERE id = ?", (report_id,)).fetchone()
+    if report is None:
+        conn.close()
+        return redirect(url_for("admin_word_reports", error="not_found"))
+
+    conn.execute(
+        """
+        UPDATE word_improvement_reports
+        SET status = ?,
+            resolved_at = ?,
+            resolved_by_user_id = ?,
+            resolution_note = ?
+        WHERE word_id = ?
+          AND status = 'open'
+        """,
+        (action, now_text(), current_user_id(), note, report["word_id"]),
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for("admin_word_reports", status="open"))
+
+
+@app.route("/admin/vocab-requests")
+@master_required
+def admin_vocab_requests():
+    status = request.args.get("status", "open")
+    if status not in {"open", "added", "rejected", "all"}:
+        status = "open"
+
+    conn = get_db_connection()
+    params = []
+    where = ""
+    if status != "all":
+        where = "WHERE vr.status = ?"
+        params.append(status)
+
+    requests_rows = conn.execute(
+        f"""
+        SELECT
+            vr.*,
+            u.display_name AS requester_name,
+            u.username AS requester_username,
+            hu.display_name AS handled_by_name
+        FROM vocab_requests vr
+        LEFT JOIN users u ON u.id = vr.user_id
+        LEFT JOIN users hu ON hu.id = vr.handled_by_user_id
+        {where}
+        ORDER BY
+            CASE WHEN vr.status = 'open' THEN 0 ELSE 1 END,
+            vr.id DESC
+        """,
+        params,
+    ).fetchall()
+
+    counts = {
+        "open": conn.execute("SELECT COUNT(*) AS c FROM vocab_requests WHERE status = 'open'").fetchone()["c"],
+        "added": conn.execute("SELECT COUNT(*) AS c FROM vocab_requests WHERE status = 'added'").fetchone()["c"],
+        "rejected": conn.execute("SELECT COUNT(*) AS c FROM vocab_requests WHERE status = 'rejected'").fetchone()["c"],
+    }
+    conn.close()
+
+    return render_template("admin_vocab_requests.html", requests=requests_rows, counts=counts, status=status)
+
+
+@app.route("/admin/vocab-requests/<int:request_id>/handle", methods=["POST"])
+@master_required
+def admin_handle_vocab_request(request_id: int):
+    action = request.form.get("action", "added")
+    if action not in {"added", "rejected"}:
+        action = "added"
+    note = request.form.get("note", "").strip()
+
+    conn = get_db_connection()
+    conn.execute(
+        """
+        UPDATE vocab_requests
+        SET status = ?,
+            handled_at = ?,
+            handled_by_user_id = ?,
+            note = ?
+        WHERE id = ?
+        """,
+        (action, now_text(), current_user_id(), note, request_id),
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("admin_vocab_requests", status="open"))
+
 
 
 @app.route("/badges")

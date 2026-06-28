@@ -23,6 +23,8 @@
         <a class="button primary" href="{{ url_for('admin_words') }}">単語一括削除</a>
         <a class="button secondary" href="{{ url_for('import_words') }}">CSVインポート</a>
         <a class="button secondary" href="{{ url_for('words') }}">単語一覧</a>
+        <a class="button secondary" href="{{ url_for('admin_word_reports') }}">改善依頼{% if open_word_report_count %}({{ open_word_report_count }}){% endif %}</a>
+        <a class="button secondary" href="{{ url_for('admin_vocab_requests') }}">単語リクエスト{% if open_vocab_request_count %}({{ open_vocab_request_count }}){% endif %}</a>
     </div>
 </section>
 
@@ -73,6 +75,6 @@
 
 <section class="card mini-card">
     <h2>master権限</h2>
-    <p class="muted">単語追加・編集・削除・CSVインポート・音声ファイル管理はmaster専用です。通常ユーザーは学習、テスト、ランキング、共有だけ使えます。</p>
+    <p class="muted">単語追加・編集・削除・CSVインポート・音声ファイル管理・改善依頼確認・追加単語リクエスト確認はmaster専用です。通常ユーザーは学習、テスト、ランキング、共有、改善依頼、追加単語リクエストが使えます。</p>
 </section>
 {% endblock %}

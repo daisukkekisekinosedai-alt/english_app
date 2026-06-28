@@ -22,6 +22,10 @@
         <span class="tag">Lv.{{ word["level"] }}</span>
     </div>
 
+    <div class="word-feedback-actions">
+        <a class="button ghost small" href="{{ url_for('report_word_improvement', word_id=word['id']) }}">この単語を改善依頼</a>
+    </div>
+
     {% if word["example"] %}
         <p class="example center">{{ word["example"] }}</p>
         <button class="button ghost small" type="button" data-speak="{{ word['example'] }}" data-rate="0.9">例文を聞く</button>
