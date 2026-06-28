@@ -78,7 +78,7 @@
 
         {% if unlocked_badges %}
             <div class="profile-badge-grid">
-                {% for badge in unlocked_badges[-6:] %}
+                {% for badge in unlocked_badges[-8:] %}
                     <div class="profile-badge unlocked">
                         <span>{{ badge.icon }}</span>
                         <strong>{{ badge.name }}</strong>
@@ -100,7 +100,7 @@
 
         {% if locked_badges %}
             <div class="next-badge-list">
-                {% for badge in locked_badges[:4] %}
+                {% for badge in locked_badges[:6] %}
                     <div class="next-badge">
                         <span>{{ badge.icon }}</span>
                         <div>

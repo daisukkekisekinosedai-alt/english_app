@@ -3,10 +3,28 @@
 {% block title %}称号・バッジ - にゃんにゃんイングリッシュ{% endblock %}
 
 {% block content %}
-<section class="card">
+{% set unlocked_badges = badges | selectattr("unlocked") | list %}
+{% set locked_badges = badges | rejectattr("unlocked") | list %}
+
+<section class="card badge-hero-v22">
     <p class="eyebrow">Badges</p>
     <h1>称号・バッジ</h1>
-    <p class="lead small-lead">回答数・満点・連続学習・リスニングなどで称号が解放されます。</p>
+    <p class="lead small-lead">回答数・正解数・連続学習・リスニング・ミス克服・TOEIC高難度など、いろんな行動で称号が解放されます。</p>
+
+    <div class="badge-summary-v22">
+        <div>
+            <span>解放済み</span>
+            <strong>{{ unlocked_badges|length }}</strong>
+        </div>
+        <div>
+            <span>未解放</span>
+            <strong>{{ locked_badges|length }}</strong>
+        </div>
+        <div>
+            <span>総バッジ</span>
+            <strong>{{ badges|length }}</strong>
+        </div>
+    </div>
 </section>
 
 <section class="card game-card">
@@ -23,18 +41,31 @@
     </div>
 </section>
 
-<section class="badge-grid">
-    {% for badge in badges %}
-        <article class="badge-card {% if badge.unlocked %}unlocked{% else %}locked{% endif %}">
-            <div class="badge-icon">{{ badge.icon }}</div>
-            <h2>{{ badge.name }}</h2>
-            <p>{{ badge.description }}</p>
-            {% if badge.unlocked %}
-                <span class="badge ok">解放済み</span>
-            {% else %}
-                <span class="badge ng">未解放</span>
-            {% endif %}
-        </article>
-    {% endfor %}
+{% for group in badges | groupby("category") %}
+<section class="card badge-category-section">
+    <div class="section-title-row">
+        <div>
+            <p class="eyebrow">Badge Category</p>
+            <h2>{{ group.grouper }}</h2>
+        </div>
+        {% set group_unlocked = group.list | selectattr("unlocked") | list %}
+        <span class="ranking-count">{{ group_unlocked|length }} / {{ group.list|length }}</span>
+    </div>
+
+    <section class="badge-grid">
+        {% for badge in group.list %}
+            <article class="badge-card {% if badge.unlocked %}unlocked{% else %}locked{% endif %}">
+                <div class="badge-icon">{{ badge.icon }}</div>
+                <h2>{{ badge.name }}</h2>
+                <p>{{ badge.description }}</p>
+                {% if badge.unlocked %}
+                    <span class="badge ok">解放済み</span>
+                {% else %}
+                    <span class="badge ng">未解放</span>
+                {% endif %}
+            </article>
+        {% endfor %}
+    </section>
 </section>
+{% endfor %}
 {% endblock %}

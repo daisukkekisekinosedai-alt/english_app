@@ -2567,69 +2567,353 @@ def calculate_exp_and_level(user_id: int) -> dict:
 def get_badges(user_id: int) -> list[dict]:
     conn = get_db_connection()
 
-    total_answers = conn.execute(
-        "SELECT COUNT(*) AS count FROM study_logs WHERE user_id = ?",
-        (user_id,),
-    ).fetchone()["count"]
+    def scalar(sql: str, params: tuple = ()) -> int | float:
+        row = conn.execute(sql, params).fetchone()
+        if row is None:
+            return 0
+        value = row[0]
+        return value or 0
 
-    correct_answers = conn.execute(
-        "SELECT COUNT(*) AS count FROM study_logs WHERE user_id = ? AND is_correct = 1",
-        (user_id,),
-    ).fetchone()["count"]
+    total_answers = int(scalar("SELECT COUNT(*) FROM study_logs WHERE user_id = ?", (user_id,)))
+    correct_answers = int(scalar("SELECT COUNT(*) FROM study_logs WHERE user_id = ? AND is_correct = 1", (user_id,)))
+    wrong_answers = int(scalar("SELECT COUNT(*) FROM study_logs WHERE user_id = ? AND is_correct = 0", (user_id,)))
+    accuracy = round((correct_answers / total_answers) * 100, 1) if total_answers else 0
 
-    perfect_sessions = conn.execute(
+    choice_answers = int(scalar("SELECT COUNT(*) FROM study_logs WHERE user_id = ? AND mode = 'choice'", (user_id,)))
+    input_answers = int(scalar("SELECT COUNT(*) FROM study_logs WHERE user_id = ? AND mode = 'input'", (user_id,)))
+    listening_answers = int(scalar("SELECT COUNT(*) FROM study_logs WHERE user_id = ? AND mode = 'listen'", (user_id,)))
+
+    distinct_words = int(scalar("SELECT COUNT(DISTINCT word_id) FROM study_logs WHERE user_id = ?", (user_id,)))
+    added_words = int(scalar("SELECT COUNT(*) FROM words WHERE created_by_user_id = ?", (user_id,)))
+    favorite_count = int(scalar("SELECT COUNT(*) FROM user_word_flags WHERE user_id = ? AND favorite = 1", (user_id,)))
+
+    perfect_sessions = int(scalar(
         """
-        SELECT COUNT(*) AS count
+        SELECT COUNT(*)
         FROM test_sessions
         WHERE user_id = ? AND total_count > 0 AND correct_count = total_count
         """,
         (user_id,),
-    ).fetchone()["count"]
+    ))
 
-    listening_answers = conn.execute(
-        "SELECT COUNT(*) AS count FROM study_logs WHERE user_id = ? AND mode = 'listen'",
+    completed_sessions = int(scalar("SELECT COUNT(*) FROM test_sessions WHERE user_id = ?", (user_id,)))
+    high_score_sessions = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM test_sessions
+        WHERE user_id = ? AND accuracy >= 80
+        """,
         (user_id,),
-    ).fetchone()["count"]
+    ))
+    elite_score_sessions = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM test_sessions
+        WHERE user_id = ? AND accuracy >= 90
+        """,
+        (user_id,),
+    ))
 
-    distinct_words = conn.execute(
-        "SELECT COUNT(DISTINCT word_id) AS count FROM study_logs WHERE user_id = ?",
+    smart_sessions = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM test_sessions
+        WHERE user_id = ? AND scope = 'smart'
+        """,
         (user_id,),
-    ).fetchone()["count"]
+    ))
+    weak_sessions = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM test_sessions
+        WHERE user_id = ? AND scope IN ('weak', 'today_wrong', 'repeat_wrong')
+        """,
+        (user_id,),
+    ))
+    favorite_sessions = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM test_sessions
+        WHERE user_id = ? AND scope = 'favorite'
+        """,
+        (user_id,),
+    ))
 
-    added_words = conn.execute(
-        "SELECT COUNT(*) AS count FROM words WHERE created_by_user_id = ?",
+    # 現在wordsに残っている単語とのJOINが必要なバッジ。
+    # 削除済み単語は対象から外しますが、EXP/レベル系はstudy_logs単体で保持します。
+    categories_touched = int(scalar(
+        """
+        SELECT COUNT(DISTINCT COALESCE(NULLIF(w.category, ''), '未分類'))
+        FROM study_logs l
+        JOIN words w ON w.id = l.word_id
+        WHERE l.user_id = ?
+        """,
         (user_id,),
-    ).fetchone()["count"]
+    ))
+    pos_touched = int(scalar(
+        """
+        SELECT COUNT(DISTINCT COALESCE(NULLIF(w.part_of_speech, ''), 'other'))
+        FROM study_logs l
+        JOIN words w ON w.id = l.word_id
+        WHERE l.user_id = ?
+        """,
+        (user_id,),
+    ))
+
+    toeic_level5_correct = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM study_logs l
+        JOIN words w ON w.id = l.word_id
+        WHERE l.user_id = ?
+          AND l.is_correct = 1
+          AND COALESCE(w.level, 1) >= 5
+        """,
+        (user_id,),
+    ))
+
+    advanced_categories_correct = int(scalar(
+        """
+        SELECT COUNT(DISTINCT COALESCE(NULLIF(w.category, ''), '未分類'))
+        FROM study_logs l
+        JOIN words w ON w.id = l.word_id
+        WHERE l.user_id = ?
+          AND l.is_correct = 1
+          AND COALESCE(w.level, 1) >= 5
+        """,
+        (user_id,),
+    ))
+
+    repeat_wrong_words = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM (
+            SELECT word_id
+            FROM study_logs
+            WHERE user_id = ?
+            GROUP BY word_id
+            HAVING SUM(CASE WHEN is_correct = 0 THEN 1 ELSE 0 END) >= 2
+        )
+        """,
+        (user_id,),
+    ))
+
+    recovered_words = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM (
+            SELECT
+                word_id,
+                SUM(CASE WHEN is_correct = 0 THEN 1 ELSE 0 END) AS wrong_count,
+                SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) AS correct_count,
+                MAX(CASE WHEN is_correct = 1 THEN id ELSE 0 END) AS last_correct_id,
+                MAX(CASE WHEN is_correct = 0 THEN id ELSE 0 END) AS last_wrong_id
+            FROM study_logs
+            WHERE user_id = ?
+            GROUP BY word_id
+            HAVING wrong_count >= 1
+               AND correct_count >= 1
+               AND last_correct_id > last_wrong_id
+        )
+        """,
+        (user_id,),
+    ))
+
+    today_answers = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM study_logs
+        WHERE user_id = ?
+          AND date(created_at, 'localtime') = date('now', 'localtime')
+        """,
+        (user_id,),
+    ))
+
+    today_correct = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM study_logs
+        WHERE user_id = ?
+          AND is_correct = 1
+          AND date(created_at, 'localtime') = date('now', 'localtime')
+        """,
+        (user_id,),
+    ))
+
+    weekly_answers = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM study_logs
+        WHERE user_id = ?
+          AND datetime(created_at) >= datetime('now', '-7 days')
+        """,
+        (user_id,),
+    ))
+
+    monthly_answers = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM study_logs
+        WHERE user_id = ?
+          AND datetime(created_at) >= datetime('now', '-30 days')
+        """,
+        (user_id,),
+    ))
+
+    imported_words_by_user = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM words
+        WHERE created_by_user_id = ?
+          AND import_batch_id IS NOT NULL
+        """,
+        (user_id,),
+    ))
+
+    import_batches_by_user = int(scalar(
+        """
+        SELECT COUNT(*)
+        FROM import_batches
+        WHERE created_by_user_id = ?
+        """,
+        (user_id,),
+    ))
 
     conn.close()
 
     streak = calculate_streak(user_id)
     game = calculate_exp_and_level(user_id)
 
-    badge_defs = [
-        ("はじめの一歩", "初めて回答した", "🌱", total_answers >= 1),
-        ("10問突破", "10問以上回答した", "🔟", total_answers >= 10),
-        ("100問回答", "100問以上回答した", "💯", total_answers >= 100),
-        ("500問回答", "500問以上回答した", "🔥", total_answers >= 500),
-        ("満点ハンター", "10問テストで満点を取った", "🏆", perfect_sessions >= 1),
-        ("満点コレクター", "満点を5回取った", "👑", perfect_sessions >= 5),
-        ("継続の鬼", "7日連続で学習した", "🗓️", streak["current"] >= 7),
-        ("耳が育ってきた", "リスニングを50問やった", "🎧", listening_answers >= 50),
-        ("語彙モンスター", "100語以上に触れた", "🧠", distinct_words >= 100),
-        ("単語職人", "自分で単語を20個追加した", "🛠️", added_words >= 20),
-        ("Lv.10到達", "レベル10に到達した", "⚡", game["level"] >= 10),
-        ("Lv.20到達", "レベル20に到達した", "🚀", game["level"] >= 20),
-    ]
-
-    return [
-        {
+    def badge(category: str, name: str, description: str, icon: str, unlocked: bool) -> dict:
+        return {
+            "category": category,
             "name": name,
             "description": description,
             "icon": icon,
-            "unlocked": unlocked,
+            "unlocked": bool(unlocked),
         }
-        for name, description, icon, unlocked in badge_defs
+
+    badge_defs = [
+        # はじめの一歩
+        badge("スタート", "はじめの一歩", "初めて回答した", "🌱", total_answers >= 1),
+        badge("スタート", "三問の儀", "3問以上回答した", "🐾", total_answers >= 3),
+        badge("スタート", "10問突破", "10問以上回答した", "🔟", total_answers >= 10),
+        badge("スタート", "初勝利", "初めて正解した", "✅", correct_answers >= 1),
+        badge("スタート", "小さな積み上げ", "今日1問以上回答した", "🧩", today_answers >= 1),
+        badge("スタート", "今日のウォームアップ", "今日5問以上回答した", "☕", today_answers >= 5),
+        badge("スタート", "今日の本気", "今日20問以上回答した", "🔥", today_answers >= 20),
+
+        # 回答数
+        badge("回答数", "30問ランナー", "30問以上回答した", "🏃", total_answers >= 30),
+        badge("回答数", "100問回答", "100問以上回答した", "💯", total_answers >= 100),
+        badge("回答数", "300問回答", "300問以上回答した", "📚", total_answers >= 300),
+        badge("回答数", "500問回答", "500問以上回答した", "🔥", total_answers >= 500),
+        badge("回答数", "1000問修行", "1000問以上回答した", "⛰️", total_answers >= 1000),
+        badge("回答数", "2000問の壁越え", "2000問以上回答した", "🧱", total_answers >= 2000),
+        badge("回答数", "5000問レジェンド", "5000問以上回答した", "🦁", total_answers >= 5000),
+        badge("回答数", "週100問ペース", "直近7日で100問以上回答した", "📈", weekly_answers >= 100),
+        badge("回答数", "月間500問", "直近30日で500問以上回答した", "🌕", monthly_answers >= 500),
+        badge("回答数", "月間1000問", "直近30日で1000問以上回答した", "🚀", monthly_answers >= 1000),
+
+        # 正解数
+        badge("正解数", "正解コレクター", "50問以上正解した", "✨", correct_answers >= 50),
+        badge("正解数", "100正解", "100問以上正解した", "🎯", correct_answers >= 100),
+        badge("正解数", "300正解", "300問以上正解した", "🏹", correct_answers >= 300),
+        badge("正解数", "500正解", "500問以上正解した", "💎", correct_answers >= 500),
+        badge("正解数", "1000正解", "1000問以上正解した", "👑", correct_answers >= 1000),
+        badge("正解数", "今日の全力正解", "今日20問以上正解した", "🌟", today_correct >= 20),
+
+        # 正答率
+        badge("正答率", "安定の60%", "累計30問以上かつ正答率60%以上", "🟡", total_answers >= 30 and accuracy >= 60),
+        badge("正答率", "伸び盛り70%", "累計50問以上かつ正答率70%以上", "🟢", total_answers >= 50 and accuracy >= 70),
+        badge("正答率", "堅実な80%", "累計100問以上かつ正答率80%以上", "🔵", total_answers >= 100 and accuracy >= 80),
+        badge("正答率", "精密な90%", "累計200問以上かつ正答率90%以上", "🟣", total_answers >= 200 and accuracy >= 90),
+        badge("正答率", "ほぼ無双", "累計500問以上かつ正答率95%以上", "⚜️", total_answers >= 500 and accuracy >= 95),
+
+        # テスト
+        badge("テスト", "10問テスト初完走", "10問テストを1回完了した", "🏁", completed_sessions >= 1),
+        badge("テスト", "テスト常連", "10問テストを5回完了した", "📝", completed_sessions >= 5),
+        badge("テスト", "テスト職人", "10問テストを20回完了した", "🛠️", completed_sessions >= 20),
+        badge("テスト", "テストマスター", "10問テストを50回完了した", "🎓", completed_sessions >= 50),
+        badge("テスト", "満点ハンター", "10問テストで満点を取った", "🏆", perfect_sessions >= 1),
+        badge("テスト", "満点コレクター", "満点を5回取った", "👑", perfect_sessions >= 5),
+        badge("テスト", "満点中毒", "満点を10回取った", "💫", perfect_sessions >= 10),
+        badge("テスト", "80点キープ", "80%以上のテストを5回完了した", "🥈", high_score_sessions >= 5),
+        badge("テスト", "90点キープ", "90%以上のテストを5回完了した", "🥇", elite_score_sessions >= 5),
+
+        # 継続
+        badge("継続", "2日連続", "2日連続で学習した", "🌤️", streak["current"] >= 2),
+        badge("継続", "3日坊主じゃない", "3日連続で学習した", "🌱", streak["current"] >= 3),
+        badge("継続", "継続の鬼", "7日連続で学習した", "🗓️", streak["current"] >= 7),
+        badge("継続", "二週間の民", "14日連続で学習した", "📆", streak["current"] >= 14),
+        badge("継続", "一ヶ月継続", "30日連続で学習した", "🏔️", streak["current"] >= 30),
+        badge("継続", "最長7日達成", "最長7日連続を達成した", "🔥", streak["longest"] >= 7),
+        badge("継続", "最長30日達成", "最長30日連続を達成した", "🌋", streak["longest"] >= 30),
+
+        # リスニング
+        badge("リスニング", "耳ならし", "リスニングを10問やった", "👂", listening_answers >= 10),
+        badge("リスニング", "耳が育ってきた", "リスニングを50問やった", "🎧", listening_answers >= 50),
+        badge("リスニング", "音声ハンター", "リスニングを100問やった", "🔊", listening_answers >= 100),
+        badge("リスニング", "リスニング職人", "リスニングを300問やった", "🎙️", listening_answers >= 300),
+        badge("リスニング", "耳の化け物", "リスニングを500問やった", "🦻", listening_answers >= 500),
+
+        # モード
+        badge("モード", "4択の使い手", "4択問題を50問やった", "🎲", choice_answers >= 50),
+        badge("モード", "入力式の勇者", "入力式問題を30問やった", "⌨️", input_answers >= 30),
+        badge("モード", "スマート学習入門", "スマート学習テストを1回完了した", "⚡", smart_sessions >= 1),
+        badge("モード", "スマート学習常連", "スマート学習テストを10回完了した", "🧠", smart_sessions >= 10),
+        badge("モード", "弱点と向き合う者", "苦手・ミス系テストを1回完了した", "🩹", weak_sessions >= 1),
+        badge("モード", "弱点クラッシャー", "苦手・ミス系テストを10回完了した", "🔨", weak_sessions >= 10),
+        badge("モード", "お気に入り学習者", "お気に入り範囲のテストを1回完了した", "💖", favorite_sessions >= 1),
+
+        # 語彙
+        badge("語彙", "10語に触れた", "10語以上に触れた", "🔤", distinct_words >= 10),
+        badge("語彙", "50語に触れた", "50語以上に触れた", "📘", distinct_words >= 50),
+        badge("語彙", "語彙モンスター", "100語以上に触れた", "🧠", distinct_words >= 100),
+        badge("語彙", "300語タッチ", "300語以上に触れた", "📚", distinct_words >= 300),
+        badge("語彙", "500語タッチ", "500語以上に触れた", "🗂️", distinct_words >= 500),
+        badge("語彙", "1000語タッチ", "1000語以上に触れた", "🏛️", distinct_words >= 1000),
+        badge("語彙", "カテゴリ探検家", "5カテゴリ以上に触れた", "🧭", categories_touched >= 5),
+        badge("語彙", "カテゴリ制覇勢", "10カテゴリ以上に触れた", "🗺️", categories_touched >= 10),
+        badge("語彙", "品詞バランサー", "4種類以上の品詞に触れた", "⚖️", pos_touched >= 4),
+
+        # TOEIC高難度
+        badge("TOEIC高難度", "Lv5初正解", "Lv5以上の単語に初めて正解した", "🥉", toeic_level5_correct >= 1),
+        badge("TOEIC高難度", "Lv5 30正解", "Lv5以上の単語に30問正解した", "🥈", toeic_level5_correct >= 30),
+        badge("TOEIC高難度", "Lv5 100正解", "Lv5以上の単語に100問正解した", "🥇", toeic_level5_correct >= 100),
+        badge("TOEIC高難度", "満点語彙ハンター", "Lv5以上の単語に300問正解した", "💠", toeic_level5_correct >= 300),
+        badge("TOEIC高難度", "高難度カテゴリ横断", "Lv5以上で5カテゴリ以上正解した", "🌐", advanced_categories_correct >= 5),
+        badge("TOEIC高難度", "高難度カテゴリ制覇", "Lv5以上で10カテゴリ以上正解した", "🛰️", advanced_categories_correct >= 10),
+
+        # ミス克服
+        badge("ミス克服", "ミスを恐れない", "不正解を10回経験した", "💥", wrong_answers >= 10),
+        badge("ミス克服", "ミスノートの住人", "2回以上ミスした単語が5語ある", "📓", repeat_wrong_words >= 5),
+        badge("ミス克服", "リカバリー成功", "一度ミスした単語をあとで正解した", "🔁", recovered_words >= 1),
+        badge("ミス克服", "リカバリー職人", "一度ミスした単語を20語以上回収した", "🧼", recovered_words >= 20),
+        badge("ミス克服", "弱点回収マスター", "一度ミスした単語を50語以上回収した", "🛡️", recovered_words >= 50),
+
+        # コレクション/管理
+        badge("コレクション", "お気に入り1号", "お気に入り単語を1語登録した", "💗", favorite_count >= 1),
+        badge("コレクション", "お気に入り棚", "お気に入り単語を10語登録した", "📌", favorite_count >= 10),
+        badge("コレクション", "お気に入り図書館", "お気に入り単語を50語登録した", "🏷️", favorite_count >= 50),
+        badge("コレクション", "単語職人", "自分で単語を20個追加した", "🛠️", added_words >= 20),
+        badge("コレクション", "単語メーカー", "自分で単語を100個追加した", "🏭", added_words >= 100),
+        badge("コレクション", "CSV投入者", "CSV由来の単語を1語以上追加した", "📥", imported_words_by_user >= 1),
+        badge("コレクション", "CSV管理者", "CSV取り込みを1回以上実行した", "🗃️", import_batches_by_user >= 1),
+        badge("コレクション", "CSV大量投入", "CSV由来の単語を500語以上追加した", "📦", imported_words_by_user >= 500),
+
+        # レベル
+        badge("レベル", "Lv.5到達", "レベル5に到達した", "⭐", game["level"] >= 5),
+        badge("レベル", "Lv.10到達", "レベル10に到達した", "⚡", game["level"] >= 10),
+        badge("レベル", "Lv.20到達", "レベル20に到達した", "🚀", game["level"] >= 20),
+        badge("レベル", "Lv.30到達", "レベル30に到達した", "🛸", game["level"] >= 30),
+        badge("レベル", "Lv.50到達", "レベル50に到達した", "🐉", game["level"] >= 50),
+        badge("レベル", "EXP 1000", "累計1000EXPに到達した", "💡", game["exp"] >= 1000),
+        badge("レベル", "EXP 5000", "累計5000EXPに到達した", "💫", game["exp"] >= 5000),
+        badge("レベル", "EXP 10000", "累計10000EXPに到達した", "🌌", game["exp"] >= 10000),
     ]
+
+    return badge_defs
 
 
 def get_recent_badges(user_id: int, limit: int = 3) -> list[dict]:

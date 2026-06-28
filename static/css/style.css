@@ -4216,3 +4216,80 @@ textarea:focus {
         justify-items: start;
     }
 }
+
+
+
+
+/* =========================================================
+   v22 Many badges
+   ========================================================= */
+
+.badge-hero-v22 {
+    background:
+        radial-gradient(circle at top right, rgba(255, 216, 234, 0.85), transparent 12rem),
+        linear-gradient(135deg, #fff9fc, #f5efff);
+}
+
+.badge-summary-v22 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-top: 1rem;
+}
+
+.badge-summary-v22 div {
+    border-radius: 22px;
+    border: 1px solid #ffd8ea;
+    background: rgba(255,255,255,0.82);
+    padding: 1rem;
+    text-align: center;
+}
+
+.badge-summary-v22 span {
+    display: block;
+    font-size: 0.84rem;
+    color: #8d6378;
+    font-weight: 700;
+}
+
+.badge-summary-v22 strong {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 2rem;
+    color: #92275d;
+}
+
+.badge-category-section {
+    margin-top: 1rem;
+}
+
+.badge-category-section .badge-grid {
+    margin-top: 0.9rem;
+}
+
+.badge-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.badge-card.unlocked::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top right, rgba(255, 199, 226, 0.55), transparent 8rem);
+    pointer-events: none;
+}
+
+.badge-card.locked {
+    opacity: 0.65;
+}
+
+.badge-card.locked .badge-icon {
+    filter: grayscale(1);
+}
+
+@media (max-width: 720px) {
+    .badge-summary-v22 {
+        grid-template-columns: 1fr;
+    }
+}
