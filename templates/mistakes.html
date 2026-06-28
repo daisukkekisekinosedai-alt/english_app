@@ -9,16 +9,16 @@
         <h1>ミスノート</h1>
         <p class="lead">間違えた単語だけを集めて、何を復習すべきか見える化します。</p>
         <div class="plan-status-row">
-            <span>ミス単語 {{ notebook.total }}語</span>
-            <span>最優先 {{ notebook.high_count }}語</span>
-            <span>近日ミス {{ notebook.recent_count }}語</span>
+            <span>ミス単語 {{ notebook['total'] }}語</span>
+            <span>最優先 {{ notebook['high_count'] }}語</span>
+            <span>近日ミス {{ notebook['recent_count'] }}語</span>
         </div>
         <div class="hero-actions">
             <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='repeat_wrong', count=10) }}">繰り返しミス10問</a>
             <a class="button secondary" href="{{ url_for('session_start', mode='choice', scope='smart', count=10) }}">おすすめ10問</a>
         </div>
     </div>
-    <img class="hero-real-cat" src="{{ url_for('static', filename=cat_image('sad')) }}" alt="ミスを見直す猫">
+    <img class="hero-real-cat" src="{{ url_for('static', filename=cat_image('neutral')) }}" alt="ミスを見直す猫">
 </section>
 
 <section class="card">
@@ -29,9 +29,16 @@
         </div>
     </div>
 
-    {% if notebook.items %}
+    {% if notebook.get('error') %}
+        <div class="alert error">
+            <strong>ミスノートの取得でエラーが出ました。</strong>
+            <p>{{ notebook.get('error') }}</p>
+        </div>
+    {% endif %}
+
+    {% if notebook['items'] %}
         <div class="mistake-list">
-            {% for item in notebook.items %}
+            {% for item in notebook['items'] %}
                 <article class="mistake-card mistake-{{ item.tone }}">
                     <div class="mistake-priority">{{ item.priority }}</div>
                     <div class="mistake-main">

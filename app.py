@@ -3684,6 +3684,10 @@ def build_exam_payload(user_id: int) -> dict:
 
 
 def get_mistake_notebook(user_id: int, limit: int = 80) -> dict:
+    """
+    ミスノート用データを安全に取得します。
+    Render/SQLite環境差で落ちにくいように、複雑な集計関数は避けています。
+    """
     conn = get_db_connection()
     rows = conn.execute(
         """
@@ -3692,22 +3696,52 @@ def get_mistake_notebook(user_id: int, limit: int = 80) -> dict:
             w.english,
             w.japanese,
             w.example,
-            w.category,
-            w.part_of_speech,
+            COALESCE(NULLIF(w.category, ''), '未分類') AS category,
+            COALESCE(NULLIF(w.part_of_speech, ''), 'other') AS part_of_speech,
             w.level,
             COUNT(l.id) AS wrong_count,
-            MAX(l.created_at) AS last_wrong_at,
-            GROUP_CONCAT(l.user_answer, ' / ') AS wrong_answers
+            MAX(l.created_at) AS last_wrong_at
         FROM study_logs l
         JOIN words w ON w.id = l.word_id
         WHERE l.user_id = ?
           AND l.is_correct = 0
-        GROUP BY w.id
+        GROUP BY
+            w.id,
+            w.english,
+            w.japanese,
+            w.example,
+            w.category,
+            w.part_of_speech,
+            w.level
         ORDER BY wrong_count DESC, datetime(last_wrong_at) DESC
         LIMIT ?
         """,
         (user_id, limit),
     ).fetchall()
+
+    answers_by_word: dict[int, list[str]] = {}
+    if rows:
+        word_ids = [int(row["id"]) for row in rows]
+        placeholders = ",".join(["?"] * len(word_ids))
+        answer_rows = conn.execute(
+            f"""
+            SELECT word_id, user_answer
+            FROM study_logs
+            WHERE user_id = ?
+              AND is_correct = 0
+              AND word_id IN ({placeholders})
+            ORDER BY id DESC
+            """,
+            [user_id] + word_ids,
+        ).fetchall()
+        for answer_row in answer_rows:
+            wid = int(answer_row["word_id"])
+            text = (answer_row["user_answer"] or "").strip()
+            if text:
+                answers_by_word.setdefault(wid, [])
+                if text not in answers_by_word[wid]:
+                    answers_by_word[wid].append(text)
+
     conn.close()
 
     items = []
@@ -3724,8 +3758,11 @@ def get_mistake_notebook(user_id: int, limit: int = 80) -> dict:
             priority = "復習候補"
             tone = "normal"
 
+        word_id = int(row["id"])
+        wrong_answers = " / ".join(answers_by_word.get(word_id, [])[:5])
+
         items.append({
-            "id": row["id"],
+            "id": word_id,
             "english": row["english"],
             "japanese": row["japanese"],
             "example": row["example"],
@@ -3736,7 +3773,7 @@ def get_mistake_notebook(user_id: int, limit: int = 80) -> dict:
             "wrong_count": wrong_count,
             "last_wrong_at": row["last_wrong_at"],
             "days_since_last_wrong": last_days,
-            "wrong_answers": row["wrong_answers"] or "",
+            "wrong_answers": wrong_answers,
             "priority": priority,
             "tone": tone,
         })
@@ -3746,6 +3783,7 @@ def get_mistake_notebook(user_id: int, limit: int = 80) -> dict:
         "total": len(items),
         "high_count": sum(1 for item in items if item["tone"] == "high"),
         "recent_count": sum(1 for item in items if item["tone"] == "recent"),
+        "error": "",
     }
 
 
@@ -3816,18 +3854,82 @@ def exam():
 
 
 @app.route("/mistakes")
+@app.route("/missnote")
+@app.route("/missnotebook")
+@app.route("/miss-note-book")
+@app.route("/miss-notebook")
+@app.route("/miss_note")
+@app.route("/mistakenote")
+@app.route("/mistakenotebook")
+@app.route("/mistake-notebook")
+@app.route("/mistake_note")
 @app.route("/mistake")
 @app.route("/miss")
 @app.route("/miss-note")
-@app.route("/mistake-note")
 @login_required
 def mistakes():
-    # v17 hotfix2:
-    # ミスノートは学習の中核機能なので、機能フラグ設定に関係なく直接URLでは開けるようにします。
+    # v17 hotfix3:
+    # ミスノートは学習の中核機能なので、URLの揺れやDB状態に強くします。
     uid = require_user_id()
-    notebook = get_mistake_notebook(uid)
+    try:
+        notebook = get_mistake_notebook(uid)
+    except Exception as exc:
+        notebook = {
+            "items": [],
+            "total": 0,
+            "high_count": 0,
+            "recent_count": 0,
+            "error": str(exc),
+        }
     return render_template("mistakes.html", notebook=notebook)
 
+
+
+
+@app.route("/mistake-note")
+@app.route("/mistake_note_direct")
+@login_required
+def mistake_note_direct():
+    uid = require_user_id()
+    try:
+        notebook = get_mistake_notebook(uid)
+        error = ""
+    except Exception as exc:
+        notebook = {
+            "items": [],
+            "total": 0,
+            "high_count": 0,
+            "recent_count": 0,
+            "error": str(exc),
+        }
+        error = str(exc)
+    return render_template("mistakes_safe.html", notebook=notebook, error=error)
+
+
+@app.route("/mistake-note-health")
+def mistake_note_health():
+    return "mistake-note route ok", 200
+
+
+
+@app.route("/mistake-note-raw")
+@login_required
+def mistake_note_raw():
+    uid = require_user_id()
+    try:
+        notebook = get_mistake_notebook(uid)
+        lines = [
+            "<h1>ミスノート RAW</h1>",
+            f"<p>total: {notebook.get('total', 0)}</p>",
+            "<ul>",
+        ]
+        for item in notebook.get("items", [])[:100]:
+            lines.append(f"<li><b>{item.get('english')}</b> - {item.get('japanese')} / {item.get('wrong_count')}回ミス</li>")
+        lines.append("</ul>")
+        lines.append('<p><a href="/mistake-note">通常表示へ</a></p>')
+        return "\\n".join(lines), 200
+    except Exception as exc:
+        return f"<h1>mistake-note raw error</h1><pre>{str(exc)}</pre>", 500
 
 
 

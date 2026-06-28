@@ -127,7 +127,7 @@
         {% if feature_enabled(2) %}<a href="{{ url_for('focus') }}">🧘 集中モード</a>{% endif %}
         {% if feature_enabled(3) %}<a href="{{ url_for('plan') }}">🗓️ 今日の学習計画</a>{% endif %}
         {% if feature_enabled(4) %}<a href="{{ url_for('exam') }}">🎯 試験モード</a>{% endif %}
-        {% if feature_enabled(5) %}<a href="{{ url_for('mistakes') }}">🧠 ミスノート</a>{% endif %}
+        {% if feature_enabled(5) %}<a href="/missnote">🧠 ミスノート</a>{% endif %}
         <a href="{{ url_for('features') }}">🧩 機能一覧</a>
         <a href="{{ url_for('dashboard') }}">📈 学習記録を見る</a>
         {% if is_master %}<a href="{{ url_for('import_words') }}">📥 CSVインポート</a>{% endif %}

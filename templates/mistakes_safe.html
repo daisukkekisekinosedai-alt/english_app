@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}ミスノート - にゃんにゃんイングリッシュ{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p class="eyebrow">Mistake Note</p>
+    <h1>ミスノート</h1>
+    <p class="lead">間違えた単語を安全表示モードで確認しています。</p>
+
+    {% if error %}
+        <div class="alert error">
+            <strong>取得時にエラーが出ました</strong>
+            <p>{{ error }}</p>
+        </div>
+    {% endif %}
+
+    <div class="hero-actions">
+        <a class="button primary" href="{{ url_for('session_start', mode='choice', scope='repeat_wrong', count=10) }}">繰り返しミス10問</a>
+        <a class="button secondary" href="{{ url_for('session_start', mode='choice', scope='smart', count=10) }}">おすすめ10問</a>
+        <a class="button secondary" href="/missnote">通常ミスノート</a>
+    </div>
+</section>
+
+<section class="card">
+    <h2>ミス単語</h2>
+    <p class="muted">合計 {{ notebook['total'] }} 語 / 最優先 {{ notebook['high_count'] }} 語 / 近日ミス {{ notebook['recent_count'] }} 語</p>
+
+    {% if notebook['items'] %}
+        <div class="mistake-list">
+            {% for item in notebook['items'] %}
+                <article class="mistake-card mistake-{{ item.tone }}">
+                    <div class="mistake-priority">{{ item.priority }}</div>
+                    <div class="mistake-main">
+                        <div class="smart-word-title">
+                            <strong>{{ item.english }}</strong>
+                            <span>{{ item.category }}</span>
+                            <span>{{ item.part_of_speech_label }}</span>
+                        </div>
+                        <p>{{ item.japanese }}</p>
+                        {% if item.example %}
+                            <small>{{ item.example }}</small>
+                        {% endif %}
+                        {% if item.wrong_answers %}
+                            <div class="wrong-answer-line">過去の回答: {{ item.wrong_answers }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mistake-meta">
+                        <span>{{ item.wrong_count }}回ミス</span>
+                        {% if item.days_since_last_wrong is not none %}
+                            <span>{{ item.days_since_last_wrong }}日前</span>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">まだミスがありません。まずは問題を解くと、ここに表示されます。</p>
+    {% endif %}
+</section>
+{% endblock %}
